@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Worlds Smallest Blog</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* {
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Top navigation bar */
+.topnav {
+  overflow: hidden;
+  background-color: #333;
+}
+
+.topnav a {
+  float: left;
+  display: block;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.topnav a:hover {
+  background-color: #ddd;
+  color: black;
+}
+
+/* Blog content */
+.content {
+  background-color: #f9f9f9;
+  padding: 20px;
+  min-height: 400px;
+}
+
+.blog-entry {
+  background: white;
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.blog-entry h2 {
+  margin-top: 0;
+  font-size: 20px;
+}
+
+.blog-entry p {
+  white-space: pre-wrap;
+}
+
+/* Pagination */
+#pagination {
+  text-align: center;
+  margin-top: 20px;
+}
+
+#pagination button {
+  margin: 0 5px;
+  padding: 10px 20px;
+  border: none;
+  background-color: #333;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+#pagination button:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+#pageIndicator {
+  display: block;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* Footer */
+.footer {
+  background-color: #ddd;
+  padding: 10px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <a href="#">Worlds Smallest Blog Server - ESP32s3</a>
+</div>
+
+<div class="content">
+  <div id="blog-container">
+    <!-- Blog entries will load here -->
+  </div>
+
+  <div id="pagination">
+    <button id="prevBtn">Prev</button>
+    <button id="nextBtn">Next</button>
+    <span id="pageIndicator"></span>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Copyright 2025 @Spiffy Productions.</p>
+</div>
+
+<script>
+let start = 0;
+let pageSize = 1;
+let currentPage = 1;
+let totalPages = 1;
+
+// fetch total count on startup
+async function fetchPageSize() {
+  const response = await fetch("/pagesize");
+  const data = await response.json();
+  pageSize = data.pagesize || 0;
+}
+
+
+// fetch total count on startup
+async function fetchTotalPages() {
+  const response = await fetch("/count");
+  const data = await response.json();
+  const totalEntries = data.total || 0;
+  totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
+}
+
+async function loadEntries() {
+  const response = await fetch(`/entries?start=${start}`);
+  const data = await response.json();
+
+  const container = document.getElementById("blog-container");
+  container.innerHTML = "";
+
+  if (data.entries && data.entries.length > 0) {
+    data.entries.forEach(entry => {
+      const div = document.createElement("div");
+      div.className = "blog-entry";
+      div.innerHTML = `
+        <h2>${entry.title}</h2>
+        <p>${entry.content}</p>
+        <small>Posted: ${entry.timestamp}</small>
+      `;
+      container.appendChild(div);
+    });
+  } else {
+    container.innerHTML = "<p>No entries found.</p>";
+  }
+
+  // update pagination state
+  document.getElementById("prevBtn").disabled = start === 0;
+  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+
+  document.getElementById("pageIndicator").textContent =
+    `Page ${currentPage} of ${totalPages}`;
+}
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (start >= pageSize) {
+    start -= pageSize;
+    currentPage--;
+    loadEntries();
+  }
+});
+
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (currentPage < totalPages) {
+    start += pageSize;
+    currentPage++;
+    loadEntries();
+  }
+});
+
+// Initial load
+(async () => {
+  await fetchPageSize();
+  await fetchTotalPages();
+  currentPage = 1;
+  loadEntries();
+})();
+</script>
+
+</body>
+</html>

@@ -148,7 +148,8 @@ void setup() {
     request->send(SD_MMC, "/admin.html", "text/html");
   });
 
-  server.on("/deepsleep", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SD_MMC, "text/html", "Server has been shut down");
     Serial.println("Entering Deep Sleep");
     esp_deep_sleep_start();
   });
@@ -184,7 +185,7 @@ server.on("/pagesize", HTTP_GET, [](AsyncWebServerRequest *request){
 });
 
   // form processing
-  server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
+server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
 
@@ -239,6 +240,7 @@ server.on("/pagesize", HTTP_GET, [](AsyncWebServerRequest *request){
 
   // API to fetch entries (for index.html JS)
   // API to fetch entries
+
 server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request){
   DynamicJsonDocument doc(8192);
   if (!loadEntries(doc)) {
@@ -273,6 +275,31 @@ server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request){
   serializeJson(out, response);
   request->send(200, "application/json", response);
 });
+// Import entries via JSON upload
+server.on("/import", HTTP_POST,[](AsyncWebServerRequest *request) { 
+    request->send(200, "text/plain", "Import complete"); 
+  },
+  NULL,
+  [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    // Write uploaded JSON file to /entries.json
+    if (index == 0) {
+      SD_MMC.rename("/entries.json","/entries.bak");
+      File file = SD_MMC.open("/entries.json", FILE_WRITE);
+      if (!file) {
+        request->send(500, "text/plain", "Failed to open file");
+        return;
+      }
+      file.write(data, len);
+      if (index + len == total) file.close();
+    } else {
+      File file = SD_MMC.open("/entries.json", FILE_APPEND);
+      if (file) {
+        file.write(data, len);
+        if (index + len == total) file.close();
+      }
+    }
+  }
+);
 
   server.begin();
 }

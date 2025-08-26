@@ -20,7 +20,11 @@ Set an admin account name and unique admin password.
 
 On boot, watch the serial output, it will tell you what IP your server is connected as. 
 
+------------------
+
 Visiting http://your.ip/ will bring up the public blog
+
+Before you deploy, you will need to edit the index header to include your title, slogan, and other meta data, otherwise you're just advertising me. :)
 
 ----------------------
 

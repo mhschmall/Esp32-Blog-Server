@@ -10,9 +10,17 @@ If you're thinking that this is a lot like that Blog on a Wii project, you would
 
 In the esp32blog.ino file:
 
+Please refer to the setting_preview.png file for how to configure the arduino IDE for deploying to a Waveshare ESP32-S3.
+
 Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 
+Set the SD* pins for the device you want to use. Currently set for Waveshare ESP32-S3
+
 Set an admin account name and unique admin password. 
+
+Set the correct time parameters, or your posting dates/times will be wrong. 
+
+Currently index.html only shows five blog entries at a time. This can be changed by setting ENTRIES_PER_PAGE to a new value. Admin page is fixed at 5 entries per page.
 
 On boot, watch the serial output, it will tell you what IP your server is connected as. 
 

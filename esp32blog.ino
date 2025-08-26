@@ -11,7 +11,7 @@
 #include "RGB_lamp.h"
 #include "time.h"
 
-// SD card pinout for Waveshare ESP32-S3
+// SD card pinout for Waveshare ESP32-S3 set for your device 
 #define SD_CLK_PIN 14
 #define SD_CMD_PIN 15
 #define SD_D0_PIN 16
@@ -19,8 +19,16 @@
 #define SD_D2_PIN 17
 #define SD_D3_PIN 21
 
+//change these
 #define ADMIN_USERNAME "admin"
 #define ADMIN_PASSWORD "admin"
+
+const char* ssid = "knife!";
+const char* password = "calmsky657";
+//time
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -25200; // Example for PDT (GMT-7) in seconds
+const int daylightOffset_sec = 3600; // Example for Daylight Saving Time
 
 // need these for https, set server port to 443
 //const char* server_cert = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----";
@@ -33,13 +41,6 @@ float currentTempC = 0.0;
 File uploadFile;
 
 AsyncWebServer server(80);
-
-const char* ssid = "knife!";
-const char* password = "calmsky657";
-//time
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = -25200; // Example for PDT (GMT-7) in seconds
-const int daylightOffset_sec = 3600; // Example for Daylight Saving Time
 
 String entriesFile = "/entries.json";
 int ENTRIES_PER_PAGE = 5;

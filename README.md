@@ -14,7 +14,7 @@ The footprint for this is pretty small, just 2 html files and a json file, so yo
 
 You're going to need a certificate to run https, stick your .pem files in the secure folder. (in development)
 
-Set the SSID and password for the access point you are connecting to. No connecting to network behind a captive portal at this time.
+Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 
 Set an admin account name and unique admin password. 
 
@@ -24,13 +24,17 @@ On boot, watch the serial output, it will tell you what IP your server is connec
 
 Visiting http://your.ip/ will bring up the public blog
 
+Notes:
+
 Before you deploy, you will need to edit the index header to include your title, slogan, and other meta data, otherwise you're just advertising me. :)
 
 ----------------------
 
 visiting http://your.ip/admin will bring up the admin page. 
 
-Some notes about the admin page: When crafting a new post, you can use html markup to add links, pull pics in, etc. You just can't put quotes around any of it or the editing buttons get wierd. 
+Notes:
+
+When crafting a new post, you can use html markup to add links, pull pics in, etc. You just can't put quotes around any of it or the editing buttons get wierd. 
 
 I hugely recommend downloading your entries.json file after each new post. This way if you have problems due to json formating, you can hand edit the json file (as well as having a backup) and then reupload it using the import button.
 

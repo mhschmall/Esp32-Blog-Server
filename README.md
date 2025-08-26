@@ -10,7 +10,7 @@ If you're thinking that this is a lot like that Blog on a Wii project, you would
 
 In the esp32blog.ino file:
 
-Please refer to the setting_preview.png file for how to configure the arduino IDE for deploying to a Waveshare ESP32-S3.
+Please refer to the settings_preview.png file for how to configure the arduino IDE for deploying to a Waveshare ESP32-S3.
 
 Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 

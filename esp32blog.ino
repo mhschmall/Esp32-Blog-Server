@@ -23,9 +23,9 @@
 #define ADMIN_USERNAME "admin"
 #define ADMIN_PASSWORD "admin"
 
-const char* ssid = "knife!";
-const char* password = "calmsky657";
-//time
+const char* ssid = "your ssid";
+const char* password = "your wifi password";
+
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -25200; // Example for PDT (GMT-7) in seconds
 const int daylightOffset_sec = 3600; // Example for Daylight Saving Time
@@ -358,3 +358,4 @@ void loop() {
 
 
 }
+

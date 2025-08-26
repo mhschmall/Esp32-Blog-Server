@@ -22,7 +22,14 @@ On boot, watch the serial output, it will tell you what IP your server is connec
 
 Visiting http://your.ip/ will bring up the public blog
 
+----------------------
+
 visiting http://your.ip/admin will bring up the admin page. 
+
+Some notes about the admin page: When crafting a new post, you can use html markup to add links, pull pics in, etc. You just can't put quotes around any of it or the editing buttons get wierd. 
+
+I hugely recommend downloading your entries.json file after each new post. This way if you have problems due to json formating, you can hand edit the json file (as well as having a backup) and then reupload it using the import button.
+
 
 
 

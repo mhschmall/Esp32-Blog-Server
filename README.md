@@ -39,3 +39,5 @@ visiting http://your.ip/admin will bring up the admin page.
 When crafting a new post, you can use html markup to add links, pull pics in, etc. You just can't put quotes around any of it or the editing buttons get wierd. 
 
 I hugely recommend downloading your entries.json file after each new post. This way if you have problems due to json formating, you can hand edit the json file (as well as having a backup) and then reupload it using the import button.
+
+If you need to power off the server, I recommend using the OFF button on the admin page. NOTE: It does not disable power to the device, but it puts the esp32 into deep sleep mode, which is as close as we can get to powering off via software. Although rare, I have incurred SD card corruption by just removing the unit from power. 

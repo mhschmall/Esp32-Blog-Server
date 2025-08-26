@@ -8,7 +8,8 @@ If you're thinking that this is a lot like that Blog on a Wii project, you would
 
 -----------------
 
-In the 
+In the esp32blog.ino file:
+
 Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 
 Set an admin account name and unique admin password. 

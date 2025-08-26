@@ -30,6 +30,7 @@ unsigned long lastTempReading = 0;
 float currentTempC = 0.0;
 //pinMode(2, OUTPUT);  //active fan control if installed
 //digitalWrite(2,LOW); //off
+File uploadFile;
 
 AsyncWebServer server(80);
 
@@ -65,6 +66,36 @@ void RGB_SetMode(uint8_t mode) {
         Set_Color(solidG, solidR, solidB);
     }
 }
+
+
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  // Stage 1: The start of the upload (index == 0)
+  if (!index) {
+    // Open the file in write mode ("w")
+    if (SD_MMC.exists("/entries.json")) {
+        SD_MMC.rename("/entries.json", "/entries.bak");
+    }
+    uploadFile = SD_MMC.open("/entries.json", FILE_WRITE);
+    Serial.printf("Starting upload of %s\n", filename.c_str());
+  }
+
+  // Stage 2: In-progress data chunks (len > 0)
+  if (len) {
+    // Write the received data chunk to the file
+    uploadFile.write(data, len);
+    Serial.printf("Writing %u bytes at index %u\n", len, index);
+  }
+
+  // Stage 3: The end of the upload (final == true)
+  if (final) {
+    uploadFile.close(); // Close the file
+    Serial.printf("Upload finished: %s, size: %u\n", filename.c_str(), index + len);
+    
+    // Send a response to the client after the upload is complete
+    request->send(200, "text/plain", "File uploaded successfully!");
+  }
+}
+
 
 void createEntriesFile() { 
   if (!SD_MMC.exists(entriesFile)) {
@@ -203,7 +234,7 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
         
         newEntry["title"] = title;
         newEntry["content"] = content;
-        newEntry["timestamp"] = WhatTimeIsIt();
+        newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
         saveEntries(doc);
         request->send(200, "text/plain", "Entry uploaded");
 
@@ -212,7 +243,7 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (int i=0; i<entries.size(); i++) {
-            if (entries[i]["timestamp"] == id){
+          if (entries[i]["timestamp"] == id) {
             entries.remove(i);
             break;
           }
@@ -222,11 +253,18 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
       }
       else if (action == "edit") {
         String id = request->getParam("id", true)->value();
-        String newContent = request->getParam("content", true)->value();
+        String newContent = request->hasParam("content", true) 
+                              ? request->getParam("content", true)->value() 
+                              : "";
+        String newTitle = request->hasParam("title", true) 
+                              ? request->getParam("title", true)->value() 
+                              : "";
+
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (JsonObject entry : entries) {
           if (entry["timestamp"] == id) {
-            entry["content"] = newContent;
+            if (newContent.length() > 0) entry["content"] = newContent;
+            if (newTitle.length() > 0) entry["title"] = newTitle;
             break;
           }
         }
@@ -275,31 +313,16 @@ server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request){
   serializeJson(out, response);
   request->send(200, "application/json", response);
 });
+
 // Import entries via JSON upload
-server.on("/import", HTTP_POST,[](AsyncWebServerRequest *request) { 
-    request->send(200, "text/plain", "Import complete"); 
+server.on( "/import", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // This is called after the file upload is finished
+    Serial.println("upload finished");
+    request->send(200);
   },
-  NULL,
-  [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-    // Write uploaded JSON file to /entries.json
-    if (index == 0) {
-      SD_MMC.rename("/entries.json","/entries.bak");
-      File file = SD_MMC.open("/entries.json", FILE_WRITE);
-      if (!file) {
-        request->send(500, "text/plain", "Failed to open file");
-        return;
-      }
-      file.write(data, len);
-      if (index + len == total) file.close();
-    } else {
-      File file = SD_MMC.open("/entries.json", FILE_APPEND);
-      if (file) {
-        file.write(data, len);
-        if (index + len == total) file.close();
-      }
-    }
-  }
+  handleUpload
 );
+
 
   server.begin();
 }

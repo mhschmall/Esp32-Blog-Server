@@ -9,3 +9,17 @@ If you're thinking that this is a lot like that Blog on a Wii you would be corre
 -----------------
 
 The footprint for this is pretty small, just 2 html files and a json file, so you don't need a huge sd card for storage. 
+
+-----------------
+
+You're going to need a certificate to run https, stick your .pem files in the secure folder. (in development)
+Set the SSID and password for the access point you are connecting to. No connecting to network behind a captive portal at this time.
+Set an admin account name and unique admin password. 
+On boot, watch the serial output, it will tell you what IP your server is connected as. 
+
+Visiting http://your.ip/ will bring up the public blog
+visiting http://your.ip/admin will bring up the admin page. 
+
+
+
+

@@ -323,6 +323,10 @@ server.on( "/import", HTTP_POST, [](AsyncWebServerRequest *request) {
   handleUpload
 );
 
+if (SD_MMC.exists("/preview.png")) {
+  Serial.println("preview image enabled");
+  server.serveStatic("/preview.png", SD_MMC, "/preview.png");
+}
 
   server.begin();
 }

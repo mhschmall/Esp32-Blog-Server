@@ -5,6 +5,8 @@ I was introduced to this Waveshare product via another project Im sorta contribu
 
 If you're thinking that this is a lot like that Blog on a Wii project, you would be correct. I was definitely inspired by that project, but the final push was google's AI trying to convince me that an ESP32 could not host blogging software. 
 
+This project is live on the internet at https://blogonesp32.duckdns.org/
+
 -----------------
 
 In the esp32blog.ino file:

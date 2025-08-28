@@ -146,7 +146,7 @@ body {
 </div>
 
 <div class="footer">
-  <p>Copyright 2025 @Spiffy Productions.</p>
+  <p id="footerText"></p>
 </div>
 
 <script>
@@ -154,6 +154,7 @@ let start = 0;
 let pageSize = 1;
 let currentPage = 1;
 let totalPages = 1;
+let pageServed = 1;
 
 // fetch total count on startup
 async function fetchPageSize() {
@@ -162,6 +163,13 @@ async function fetchPageSize() {
   pageSize = data.pagesize || 0;
 }
 
+async function fetchPageServed() {
+  const response = await fetch("/pagecount");
+  const data = await response.json();
+  pageServed = data.pagecount || 0;
+  document.getElementById("footerText").textContent =
+    `${pageServed} pages served, Copyright 2025 @Spiffy Productions`;
+}
 
 // fetch total count on startup
 async function fetchTotalPages() {
@@ -217,10 +225,13 @@ document.getElementById("nextBtn").addEventListener("click", () => {
   }
 });
 
+
+
 // Initial load
 (async () => {
   await fetchPageSize();
   await fetchTotalPages();
+  await fetchPageServed();
   currentPage = 1;
   loadEntries();
 })();

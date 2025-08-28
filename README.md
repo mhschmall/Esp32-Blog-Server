@@ -27,7 +27,7 @@ On boot, watch the serial output, it will tell you what IP your server is connec
 
 ------------------
 
-The footprint for this is pretty small, just 2 html files and a json file, so you don't need a huge sd card for storage. Just copy the items in SD_CARD_LAYOUT to your fat32 formatted SD card. You're going to need a certificate to run https, stick your .pem files in the secure folder. (in development)
+The footprint for this is pretty small, just 2 html files and a json file, so you don't need a huge sd card for storage. Just copy the items in SD_CARD_LAYOUT to your fat32 formatted SD card. 
 
 Before you deploy, you will need to edit the index.html header to include your title, slogan, and other meta data, otherwise you're just advertising me. :)
 

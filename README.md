@@ -1,5 +1,5 @@
 # Esp32-Blog-Server
-Simple blogging platform that runs on an ESP32. Currently designed for a ESP32-S3-LCD-1.47, it could run on any ESP32 with a few changes, including the little XIAO SEEED ESP32 S3 Sense which is about the size of a postage stamp. 
+Simple blogging platform that runs on an ESP32. Currently designed for a Waveshare ESP32-S3-LCD-1.47, it could run on any ESP32 with a few changes, including the little XIAO SEEED ESP32 S3 Sense which is about the size of a postage stamp. 
 
 I was introduced to this Waveshare product via another project Im sorta contributing to (ESP32 powered offline media server). These boards are pretty feature packed and I definitely like the whole USB stick aspect to using and powering them.
 
@@ -42,4 +42,11 @@ When crafting a new post, you can use html markup to add links, pull pics in, et
 
 I hugely recommend downloading your entries.json file after each new post. This way if you have problems due to json formating, you can hand edit the json file (as well as having a backup) and then reupload it using the import button.
 
-If you need to power off the server, I recommend using the OFF button on the admin page. NOTE: It does not disable power to the device, but it puts the esp32 into deep sleep mode, which is as close as we can get to powering off via software. Although rare, I have incurred SD card corruption by just removing the unit from power. 
+If you need to power off the server, I recommend using the OFF button on the admin page. NOTE: It does not disable power to the device, but it puts the esp32 into deep sleep mode, which is as close as we can get to powering off via software. Although rare, I have incurred SD card corruption by just removing similar units from power. 
+
+---------------
+
+Notes about SSL: While technically possible, deploying SSL on the ESP32 requires the use of special versions of the web serving packages. While there is nothing wrong with that, you still have to hunt them down, manually install them and then hope it works. Then there's cooking the certs and private keys to work with said packages. Its a lot of work and when it does work, your program is using more memeory to handle the SSL overhead. 
+
+What most people do (including me) is to leave the device working on http over port 80 and deploy a reverse proxy to handle the SSL traffic over port 443. I used Caddy, which took literally minutes to install and set up, took my new certs and keys (no cooking!) and I was up and running. 
+

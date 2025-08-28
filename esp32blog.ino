@@ -7,6 +7,7 @@
 #include "SD_MMC.h"
 #include "DNSServer.h"
 #include <ArduinoJson.h>
+#include <Preferences.h>
 //#include <map>
 #include "RGB_lamp.h"
 #include "time.h"
@@ -20,24 +21,23 @@
 #define SD_D3_PIN 21
 
 //change these
-#define ADMIN_USERNAME "admin"
-#define ADMIN_PASSWORD "admin"
+#define ADMIN_USERNAME "mrbinkley690"
+#define ADMIN_PASSWORD "!hj;lajdf00ladcmlkjsuy"
 
-const char* ssid = "your ssid";
-const char* password = "your wifi password";
+Preferences eeprom; 
+
+const char* ssid = "knife!";
+const char* password = "calmsky657";
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -25200; // Example for PDT (GMT-7) in seconds
 const int daylightOffset_sec = 3600; // Example for Daylight Saving Time
 
-// need these for https, set server port to 443
-//const char* server_cert = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----";
-//const char* server_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----";
-
 unsigned long lastTempReading = 0;
 float currentTempC = 0.0;
 //pinMode(2, OUTPUT);  //active fan control if installed
 //digitalWrite(2,LOW); //off
+
 File uploadFile;
 
 AsyncWebServer server(80);
@@ -66,6 +66,21 @@ void RGB_SetMode(uint8_t mode) {
     } else if (mode == 2) {
         Set_Color(solidG, solidR, solidB);
     }
+}
+
+void updatePageServed(){
+  eeprom.begin("storage", false);  //open the storage namespace for rw
+  unsigned int pageServed = eeprom.getUInt("pageCounter", 50); //get value for key, assign 0 on creation
+  ++pageServed;
+  eeprom.putUInt("pageCounter", pageServed);  //save pagenum to nvram
+  eeprom.end();
+}
+
+unsigned int returnPageServed(){
+  eeprom.begin("storage", false);  //open the storage namespace for rw
+  unsigned int pageServed = eeprom.getUInt("pageCounter", 0); //get value for key, assign 0 on creation
+  eeprom.end();
+  return pageServed;
 }
 
 
@@ -168,7 +183,11 @@ void setup() {
 // server.setSSL(server_cert, server_key);
 
   createEntriesFile();
+
+
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    updatePageServed();
     request->send(SD_MMC, "/index.html", "text/html");
   });
 
@@ -182,6 +201,7 @@ void setup() {
 
   server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SD_MMC, "text/html", "Server has been shut down");
+    RGB_SetMode(0);
     Serial.println("Entering Deep Sleep");
     esp_deep_sleep_start();
   });
@@ -207,8 +227,15 @@ void setup() {
   request->send(200, "application/json", response);
 });
 
+server.on("/pagecount", HTTP_GET, [](AsyncWebServerRequest *request){
+  DynamicJsonDocument out(56);
+  out["pagecount"] = returnPageServed();
+  String response;
+  serializeJson(out, response);
+  request->send(200, "application/json", response);
+});
+
 server.on("/pagesize", HTTP_GET, [](AsyncWebServerRequest *request){
-  
   DynamicJsonDocument out(56);
   out["pagesize"] = ENTRIES_PER_PAGE;
   String response;
@@ -350,9 +377,6 @@ void loop() {
      } else {
        RGB_SetColor(0,255,0);
      }
-//       Serial.print("current temp: ");
- //      Serial.print(currentTempC);
-//       Serial.println("c");
     lastTempReading = millis();
     }
 

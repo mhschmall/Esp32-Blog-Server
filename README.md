@@ -48,5 +48,5 @@ If you need to power off the server, I recommend using the OFF button on the adm
 
 Notes about SSL: While technically possible, deploying SSL on the ESP32 requires the use of special versions of the web serving packages. While there is nothing wrong with that, you still have to hunt them down, manually install them and then hope it works. Then there's cooking the certs and private keys to work with said packages. Its a lot of work and when it does work, your program is using more memeory to handle the SSL overhead. 
 
-What most people do (including me) is to leave the device working on http over port 80 and deploy a reverse proxy to handle the SSL traffic over port 443. I used Caddy, which took literally minutes to install and set up, took my new certs and keys (no cooking!) and I was up and running. 
+What most people do (including me) is to leave the device working on http over port 80 and deploy a reverse proxy to handle the SSL traffic over port 443. I used Caddy, which took literally minutes to install and set up, took my new certs and keys (no cooking!) and I was up and running in no time.
 

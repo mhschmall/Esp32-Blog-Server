@@ -52,5 +52,5 @@ What most people do (including me) is to leave the device working on http over p
 
 -----------------------
 
-The software now supports updating a domain with duckdns.org.  Visit duckdns.org to create your own domain and get your token key. Drop those values into DOMAIN and DDNTOKEN respectively and the blog will update duckdns.org with your ip.
+The software now supports updating a domain with duckdns.org.  Visit duckdns.org to create your own domain and get your token key. Drop those values into DOMAIN and DDNSTOKEN respectively and the blog will update duckdns.org with your ip.
 

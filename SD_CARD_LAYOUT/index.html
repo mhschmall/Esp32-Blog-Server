@@ -6,126 +6,25 @@
   <meta name="description" content="Worlds Smallest Blog powered by ESP32s3. Read tiny tech posts served from the smallest web server.">
   <meta name="keywords" content="ESP32, microcontroller blog, IoT blog, Worlds Smallest Blog">
   <meta name="author" content="Spiffy Productions">
-  <link rel="canonical" href="http://blogonesp32.duckdns.org/">
+  <link rel="canonical" href="https://blogonesp32.duckdns.org/">
   <title>Worlds Smallest Blog Server</title>
-
-  <!-- Open Graph (Facebook, Slack, LinkedIn) -->
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Worlds Smallest Blog Server">
-  <meta property="og:description" content="A tiny blog served from an ESP32s3 dev kit.">
-  <meta property="og:url" content="http://blogonesp32.duckdns.org/">
-  <meta property="og:image" content="http://blogonesp32.duckdns.org/preview.png">
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Worlds Smallest Blog Server">
-  <meta name="twitter:description" content="A tiny blog served from an ESP32s3 dev kit.">
-  <meta name="twitter:image" content="http://blogonesp32.duckdns.org/preview.png">
-
-  <!-- Blog structured data -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Blog",
-    "name": "Worlds Smallest Blog",
-    "description": "A tiny blog served from an ESP32s3 dev kit.",
-    "publisher": {
-      "@type": "Organization",
-      "name": "Spiffy Productions"
-    }
-  }
-</script>
-<style>
-* {
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-body {
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* Top navigation bar */
-.topnav {
-  overflow: hidden;
-  background-color: #333;
-}
-
-.topnav a {
-  float: left;
-  display: block;
-  color: #f2f2f2;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-}
-
-.topnav a:hover {
-  background-color: #ddd;
-  color: black;
-}
-
-/* Blog content */
-.content {
-  background-color: #f9f9f9;
-  padding: 20px;
-  min-height: 400px;
-}
-
-.blog-entry {
-  background: white;
-  margin-bottom: 20px;
-  padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.blog-entry h2 {
-  margin-top: 0;
-  font-size: 20px;
-}
-
-.blog-entry p {
-  white-space: pre-wrap;
-}
-
-/* Pagination */
-#pagination {
-  text-align: center;
-  margin-top: 20px;
-}
-
-#pagination button {
-  margin: 0 5px;
-  padding: 10px 20px;
-  border: none;
-  background-color: #333;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-#pagination button:disabled {
-  background-color: #aaa;
-  cursor: not-allowed;
-}
-
-#pageIndicator {
-  display: block;
-  margin-top: 10px;
-  font-size: 14px;
-  color: #555;
-}
-
-/* Footer */
-.footer {
-  background-color: #ddd;
-  padding: 10px;
-  text-align: center;
-}
-</style>
+  <style>
+  * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; }
+  .topnav { overflow: hidden; background-color: #333; }
+  .topnav a { float: left; display: block; color: #f2f2f2; text-align: center; padding: 14px 16px; text-decoration: none; }
+  .topnav a:hover { background-color: #ddd; color: black; }
+  .content { background-color: #f9f9f9; padding: 20px; min-height: 400px; }
+  .blog-entry { background: white; margin-bottom: 20px; padding: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .blog-entry h2 { margin-top: 0; font-size: 20px; }
+  .blog-entry p { white-space: pre-wrap; }
+  #pagination { text-align: center; margin-top: 20px; }
+  #pagination button { margin: 5px; padding: 10px 20px; border: none; background-color: #333; color: white; font-size: 16px; cursor: pointer; border-radius: 4px; }
+  #pagination button:disabled { background-color: #aaa; cursor: not-allowed; }
+  #pageIndicator { display: block; margin-top: 10px; font-size: 14px; color: #555; }
+  #toggleOrderBtn { padding: 10px 20px; border: none; background-color: #333; color: white; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 15px 0; }
+  .footer { background-color: #ddd; padding: 10px; text-align: center; }
+  </style>
 </head>
 <body>
 
@@ -133,10 +32,13 @@ body {
   <a href="#">Worlds Smallest Blog Server - ESP32s3</a>
 </div>
 
+<!-- Order toggle button -->
+<div style="text-align:left;">
+  <button id="toggleOrderBtn">Order: Oldest → Newest</button>
+</div>
+
 <div class="content">
-  <div id="blog-container">
-    <!-- Blog entries will load here -->
-  </div>
+  <div id="blog-container"><!-- Blog entries load here --></div>
 
   <div id="pagination">
     <button id="prevBtn">Prev</button>
@@ -155,8 +57,8 @@ let pageSize = 1;
 let currentPage = 1;
 let totalPages = 1;
 let pageServed = 1;
+let orderAsc = true; // true = oldest→newest, false = newest→oldest
 
-// fetch total count on startup
 async function fetchPageSize() {
   const response = await fetch("/pagesize");
   const data = await response.json();
@@ -171,7 +73,6 @@ async function fetchPageServed() {
     `${pageServed} pages served, Copyright 2025 @Spiffy Productions`;
 }
 
-// fetch total count on startup
 async function fetchTotalPages() {
   const response = await fetch("/count");
   const data = await response.json();
@@ -186,8 +87,15 @@ async function loadEntries() {
   const container = document.getElementById("blog-container");
   container.innerHTML = "";
 
-  if (data.entries && data.entries.length > 0) {
-    data.entries.forEach(entry => {
+  let entries = data.entries || [];
+
+  // client-side sort
+  if (!orderAsc) {
+    entries = entries.slice().reverse();
+  }
+
+  if (entries.length > 0) {
+    entries.forEach(entry => {
       const div = document.createElement("div");
       div.className = "blog-entry";
       div.innerHTML = `
@@ -201,31 +109,70 @@ async function loadEntries() {
     container.innerHTML = "<p>No entries found.</p>";
   }
 
-  // update pagination state
-  document.getElementById("prevBtn").disabled = start === 0;
-  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+  // pagination button state depends on order
+  if (orderAsc) {
+    document.getElementById("prevBtn").disabled = start === 0;
+    document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+  } else {
+    document.getElementById("prevBtn").disabled = currentPage >= totalPages;
+    document.getElementById("nextBtn").disabled = start === 0;
+  }
 
+  const orderLabel = orderAsc ? "Oldest First" : "Newest First";
   document.getElementById("pageIndicator").textContent =
-    `Page ${currentPage} of ${totalPages}`;
+    `Page ${currentPage} of ${totalPages} (${orderLabel})`;
 }
 
+// Pagination buttons
 document.getElementById("prevBtn").addEventListener("click", () => {
-  if (start >= pageSize) {
-    start -= pageSize;
-    currentPage--;
-    loadEntries();
+  if (orderAsc) {
+    if (start >= pageSize) {
+      start -= pageSize;
+      currentPage--;
+      loadEntries();
+    }
+  } else {
+    if (currentPage < totalPages) {
+      start += pageSize;
+      currentPage++;
+      loadEntries();
+    }
   }
 });
 
 document.getElementById("nextBtn").addEventListener("click", () => {
-  if (currentPage < totalPages) {
-    start += pageSize;
-    currentPage++;
-    loadEntries();
+  if (orderAsc) {
+    if (currentPage < totalPages) {
+      start += pageSize;
+      currentPage++;
+      loadEntries();
+    }
+  } else {
+    if (start >= pageSize) {
+      start -= pageSize;
+      currentPage--;
+      loadEntries();
+    }
   }
 });
 
+// Toggle order button
+document.getElementById("toggleOrderBtn").addEventListener("click", async () => {
+  orderAsc = !orderAsc;
+  document.getElementById("toggleOrderBtn").textContent =
+    orderAsc ? "Order: Oldest → Newest" : "Order: Newest → Oldest";
 
+  if (orderAsc) {
+    start = 0;
+    currentPage = 1;
+  } else {
+    await fetchTotalPages();
+    currentPage = totalPages;
+    start = (totalPages - 1) * pageSize;
+  }
+
+  loadEntries();
+});
 
 // Initial load
 (async () => {
@@ -239,4 +186,3 @@ document.getElementById("nextBtn").addEventListener("click", () => {
 
 </body>
 </html>
-

@@ -25,10 +25,12 @@
 //change these
 #define ADMIN_USERNAME ""
 #define ADMIN_PASSWORD ""
+// set true if you want to use duckdns.org
+#define USEDUCK true
 //your duckdns.org domain
 #define DOMAIN ""
 //your duckdns.org token
-#define DDNTOKEN ""
+#define DDNSTOKEN ""
 
 Preferences eeprom;
 HTTPClient http;
@@ -65,8 +67,9 @@ void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void updateDomain() {
+  if (USEDUCK){
  // Specify the URL
-  String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNTOKEN);
+  String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNSTOKEN);
   http.begin(url); 
   char httpResponseCode = http.GET();
 
@@ -80,6 +83,7 @@ void updateDomain() {
   }
   http.end();
   lastDomainUpdate = millis();
+  }
 }
 
 
@@ -402,7 +406,7 @@ void loop() {
     lastTempReading = millis();
   }
 
-  if (millis() - lastDomainUpdate > 60000) {
+  if (millis() - lastDomainUpdate > 600000) {
     updateDomain();
   }
 }

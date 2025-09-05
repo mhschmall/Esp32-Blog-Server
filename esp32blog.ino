@@ -1,6 +1,6 @@
 #include "Arduino.h"
 #define FF_USE_FASTSEEK 1
-#define SD_FREQ_KHZ 10000   
+#define SD_FREQ_KHZ 10000
 #include "WiFi.h"
 #include "ESPAsyncWebServer.h"
 #include "FS.h"
@@ -11,8 +11,10 @@
 //#include <map>
 #include "RGB_lamp.h"
 #include "time.h"
+#include "HTTPClient.h"
 
-// SD card pinout for Waveshare ESP32-S3 set for your device 
+
+// SD card pinout for Waveshare ESP32-S3 set for your device
 #define SD_CLK_PIN 14
 #define SD_CMD_PIN 15
 #define SD_D0_PIN 16
@@ -21,19 +23,25 @@
 #define SD_D3_PIN 21
 
 //change these
-#define ADMIN_USERNAME "mrbinkley690"
-#define ADMIN_PASSWORD "!hj;lajdf00ladcmlkjsuy"
+#define ADMIN_USERNAME ""
+#define ADMIN_PASSWORD ""
+//your duckdns.org domain
+#define DOMAIN ""
+//your duckdns.org token
+#define DDNTOKEN ""
 
-Preferences eeprom; 
+Preferences eeprom;
+HTTPClient http;
 
-const char* ssid = "knife!";
-const char* password = "calmsky657";
+const char *ssid = "";
+const char *password = "";
 
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = -25200; // Example for PDT (GMT-7) in seconds
-const int daylightOffset_sec = 3600; // Example for Daylight Saving Time
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -25200;    // Example for PDT (GMT-7) in seconds
+const int daylightOffset_sec = 3600;  // Example for Daylight Saving Time
 
 unsigned long lastTempReading = 0;
+unsigned long lastDomainUpdate = 0;
 float currentTempC = 0.0;
 //pinMode(2, OUTPUT);  //active fan control if installed
 //digitalWrite(2,LOW); //off
@@ -49,36 +57,54 @@ uint8_t currentLEDMode = 0;  // 0=off, 1=rainbow, 2=solid color
 uint8_t solidR = 0, solidG = 0, solidB = 0;
 
 void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
-    solidR = r;
-    solidG = g;
-    solidB = b;
-    currentLEDMode = 2; 
-    Set_Color(g, r, b);
+  solidR = r;
+  solidG = g;
+  solidB = b;
+  currentLEDMode = 2;
+  Set_Color(g, r, b);
+}
+
+void updateDomain() {
+ // Specify the URL
+  String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNTOKEN);
+  http.begin(url); 
+  char httpResponseCode = http.GET();
+
+  if (httpResponseCode > 0) {
+    String payload = http.getString();
+    Serial.print("domain updated: ");
+    Serial.println(payload);  // The fetched web page
+  } else {
+    Serial.print("domain Error code: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end();
+  lastDomainUpdate = millis();
 }
 
 
 void RGB_SetMode(uint8_t mode) {
-    currentLEDMode = mode;
+  currentLEDMode = mode;
 
-    if (mode == 0) {
-        // Turn off LED immediately
-        Set_Color(0, 0, 0);
-    } else if (mode == 2) {
-        Set_Color(solidG, solidR, solidB);
-    }
+  if (mode == 0) {
+    // Turn off LED immediately
+    Set_Color(0, 0, 0);
+  } else if (mode == 2) {
+    Set_Color(solidG, solidR, solidB);
+  }
 }
 
-void updatePageServed(){
-  eeprom.begin("storage", false);  //open the storage namespace for rw
-  unsigned int pageServed = eeprom.getUInt("pageCounter", 50); //get value for key, assign 0 on creation
+void updatePageServed() {
+  eeprom.begin("storage", false);                               //open the storage namespace for rw
+  unsigned int pageServed = eeprom.getUInt("pageCounter", 50);  //get value for key, assign 0 on creation
   ++pageServed;
   eeprom.putUInt("pageCounter", pageServed);  //save pagenum to nvram
   eeprom.end();
 }
 
-unsigned int returnPageServed(){
-  eeprom.begin("storage", false);  //open the storage namespace for rw
-  unsigned int pageServed = eeprom.getUInt("pageCounter", 0); //get value for key, assign 0 on creation
+unsigned int returnPageServed() {
+  eeprom.begin("storage", false);                              //open the storage namespace for rw
+  unsigned int pageServed = eeprom.getUInt("pageCounter", 0);  //get value for key, assign 0 on creation
   eeprom.end();
   return pageServed;
 }
@@ -89,7 +115,7 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   if (!index) {
     // Open the file in write mode ("w")
     if (SD_MMC.exists("/entries.json")) {
-        SD_MMC.rename("/entries.json", "/entries.bak");
+      SD_MMC.rename("/entries.json", "/entries.bak");
     }
     uploadFile = SD_MMC.open("/entries.json", FILE_WRITE);
     Serial.printf("Starting upload of %s\n", filename.c_str());
@@ -104,27 +130,27 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
 
   // Stage 3: The end of the upload (final == true)
   if (final) {
-    uploadFile.close(); // Close the file
+    uploadFile.close();  // Close the file
     Serial.printf("Upload finished: %s, size: %u\n", filename.c_str(), index + len);
-    
+
     // Send a response to the client after the upload is complete
     request->send(200, "text/plain", "File uploaded successfully!");
   }
 }
 
 
-void createEntriesFile() { 
+void createEntriesFile() {
   if (!SD_MMC.exists(entriesFile)) {
     Serial.println("Entries file not found. Generating default.");
     File file = SD_MMC.open(entriesFile, FILE_WRITE);
     if (!file) {
-        Serial.println("Failed to open entries file for writing.");
+      Serial.println("Failed to open entries file for writing.");
     } else {
-       Serial.println("created entries file");
-       file.println("{");
-       file.println("\"entries\":[]");
-       file.println("}");
-       file.close();
+      Serial.println("created entries file");
+      file.println("{");
+      file.println("\"entries\":[]");
+      file.println("}");
+      file.close();
     }
   }
 }
@@ -147,12 +173,12 @@ bool saveEntries(DynamicJsonDocument &doc) {
   return true;
 }
 
-String WhatTimeIsIt(){
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-    char timeStringBuff[32];
-    strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
-    return timeStringBuff;
+String WhatTimeIsIt() {
+  struct tm timeinfo;
+  getLocalTime(&timeinfo);
+  char timeStringBuff[32];
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
+  return timeStringBuff;
 }
 
 
@@ -160,12 +186,12 @@ void setup() {
   Serial.begin(115200);
   btStop();
 
-      // Initialize SD card
+  // Initialize SD card
   Serial.println("Initializing SD Card...");
-    if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
-        Serial.println("ERROR: SDMMC Pin configuration failed!");
-        return;
-    }
+  if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
+    Serial.println("ERROR: SDMMC Pin configuration failed!");
+    return;
+  }
 
   if (!SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT, 12)) {
     Serial.println("SD Card Mount Failed");
@@ -180,71 +206,69 @@ void setup() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   // serve public index.html
 
-// server.setSSL(server_cert, server_key);
+  // server.setSSL(server_cert, server_key);
 
   createEntriesFile();
 
-
-
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
     request->send(SD_MMC, "/index.html", "text/html");
   });
 
   // serve admin dashboard
-  server.on("/admin", HTTP_GET, [](AsyncWebServerRequest *request){
-    if(!request->authenticate(ADMIN_USERNAME, ADMIN_PASSWORD)) {
+  server.on("/admin", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->authenticate(ADMIN_USERNAME, ADMIN_PASSWORD)) {
       return request->requestAuthentication();
     }
     request->send(SD_MMC, "/admin.html", "text/html");
   });
 
-  server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SD_MMC, "text/html", "Server has been shut down");
     RGB_SetMode(0);
     Serial.println("Entering Deep Sleep");
     esp_deep_sleep_start();
   });
 
-  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(401, "text/plain", "You've been logged out"); // Sending 401 forces re-authentication
+  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(401, "text/plain", "You've been logged out");  // Sending 401 forces re-authentication
   });
 
-  server.on("/count", HTTP_GET, [](AsyncWebServerRequest *request){
-  DynamicJsonDocument doc(8192);
-  int total = 0;
+  server.on("/count", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument doc(8192);
+    int total = 0;
 
-  if (loadEntries(doc)) {
-    JsonArray entries = doc["entries"].as<JsonArray>();
-    total = entries.size();
-  }
+    if (loadEntries(doc)) {
+      JsonArray entries = doc["entries"].as<JsonArray>();
+      total = entries.size();
+    }
 
-  DynamicJsonDocument out(256);
-  out["total"] = total;
+    DynamicJsonDocument out(256);
+    out["total"] = total;
 
-  String response;
-  serializeJson(out, response);
-  request->send(200, "application/json", response);
-});
+    String response;
+    serializeJson(out, response);
+    request->send(200, "application/json", response);
+  });
 
-server.on("/pagecount", HTTP_GET, [](AsyncWebServerRequest *request){
-  DynamicJsonDocument out(56);
-  out["pagecount"] = returnPageServed();
-  String response;
-  serializeJson(out, response);
-  request->send(200, "application/json", response);
-});
+  server.on("/pagecount", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument out(56);
+    out["pagecount"] = returnPageServed();
+    String response;
+    serializeJson(out, response);
+    request->send(200, "application/json", response);
+  });
 
-server.on("/pagesize", HTTP_GET, [](AsyncWebServerRequest *request){
-  DynamicJsonDocument out(56);
-  out["pagesize"] = ENTRIES_PER_PAGE;
-  String response;
-  serializeJson(out, response);
-  request->send(200, "application/json", response);
-});
+  server.on("/pagesize", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument out(56);
+    out["pagesize"] = ENTRIES_PER_PAGE;
+    String response;
+    serializeJson(out, response);
+    request->send(200, "application/json", response);
+  });
 
   // form processing
-server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
 
@@ -259,18 +283,17 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
 
         JsonArray entries = doc["entries"].as<JsonArray>();
         JsonObject newEntry = entries.createNestedObject();
-        
+
         newEntry["title"] = title;
         newEntry["content"] = content;
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
         saveEntries(doc);
         request->send(200, "text/plain", "Entry uploaded");
 
-      } 
-      else if (action == "delete") {
+      } else if (action == "delete") {
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
-        for (int i=0; i<entries.size(); i++) {
+        for (int i = 0; i < entries.size(); i++) {
           if (entries[i]["timestamp"] == id) {
             entries.remove(i);
             break;
@@ -278,15 +301,14 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
         }
         saveEntries(doc);
         request->send(200, "text/plain", "Entry deleted");
-      }
-      else if (action == "edit") {
+      } else if (action == "edit") {
         String id = request->getParam("id", true)->value();
-        String newContent = request->hasParam("content", true) 
-                              ? request->getParam("content", true)->value() 
+        String newContent = request->hasParam("content", true)
+                              ? request->getParam("content", true)->value()
                               : "";
-        String newTitle = request->hasParam("title", true) 
-                              ? request->getParam("title", true)->value() 
-                              : "";
+        String newTitle = request->hasParam("title", true)
+                            ? request->getParam("title", true)->value()
+                            : "";
 
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (JsonObject entry : entries) {
@@ -307,79 +329,80 @@ server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request){
   // API to fetch entries (for index.html JS)
   // API to fetch entries
 
-server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request){
-  DynamicJsonDocument doc(8192);
-  if (!loadEntries(doc)) {
-    request->send(200, "application/json", "{\"entries\":[]}");
-    return;
-  }
+  server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument doc(8192);
+    if (!loadEntries(doc)) {
+      request->send(200, "application/json", "{\"entries\":[]}");
+      return;
+    }
 
-  JsonArray entries = doc["entries"].as<JsonArray>();
+    JsonArray entries = doc["entries"].as<JsonArray>();
 
-  // Check if "all" parameter is present
-  if (request->hasParam("all")) {
+    // Check if "all" parameter is present
+    if (request->hasParam("all")) {
+      String response;
+      serializeJson(doc, response);  // returns { "entries": [ ... ] }
+      request->send(200, "application/json", response);
+      return;
+    }
+
+    // Default: paginated view
+    int start = 0;
+    if (request->hasParam("start")) {
+      start = request->getParam("start")->value().toInt();
+    }
+
+    DynamicJsonDocument out(8192);
+    JsonArray slice = out.createNestedArray("entries");
+
+    for (int i = start; i < start + ENTRIES_PER_PAGE && i < entries.size(); i++) {
+      slice.add(entries[i]);
+    }
+
     String response;
-    serializeJson(doc, response); // returns { "entries": [ ... ] }
+    serializeJson(out, response);
     request->send(200, "application/json", response);
-    return;
+  });
+
+  // Import entries via JSON upload
+  server.on(
+    "/import", HTTP_POST, [](AsyncWebServerRequest *request) {
+      // This is called after the file upload is finished
+      Serial.println("upload finished");
+      request->send(200);
+    },
+    handleUpload);
+
+  if (SD_MMC.exists("/preview.png")) {
+    Serial.println("preview image enabled");
+    server.serveStatic("/preview.png", SD_MMC, "/preview.png");
   }
-
-  // Default: paginated view
-  int start = 0;
-  if (request->hasParam("start")) {
-    start = request->getParam("start")->value().toInt();
-  }
-
-  DynamicJsonDocument out(8192);
-  JsonArray slice = out.createNestedArray("entries");
-
-  for (int i = start; i < start + ENTRIES_PER_PAGE && i < entries.size(); i++) {
-    slice.add(entries[i]);
-  }
-
-  String response;
-  serializeJson(out, response);
-  request->send(200, "application/json", response);
-});
-
-// Import entries via JSON upload
-server.on( "/import", HTTP_POST, [](AsyncWebServerRequest *request) {
-    // This is called after the file upload is finished
-    Serial.println("upload finished");
-    request->send(200);
-  },
-  handleUpload
-);
-
-if (SD_MMC.exists("/preview.png")) {
-  Serial.println("preview image enabled");
-  server.serveStatic("/preview.png", SD_MMC, "/preview.png");
-}
-
+  updateDomain();
   server.begin();
 }
 
 void loop() {
 
-  if (millis() - lastTempReading > 6000){
-     currentTempC = temperatureRead();
+  if (millis() - lastTempReading > 6000) {
+    currentTempC = temperatureRead();
     RGB_SetMode(2);
-     if (currentTempC > 62.0){
-       RGB_SetColor(255, 0, 0);
-     } else if (currentTempC > 59.0){
-       RGB_SetColor(255,128,0);
-  //     digitalWrite(2,LOW);
-//       Serial.println("fan on");
-     } else if (currentTempC > 54.0){
-       RGB_SetColor(255,255,0);
- //      digitalWrite(2,HIGH);
+    if (currentTempC > 62.0) {
+      RGB_SetColor(255, 0, 0);
+    } else if (currentTempC > 59.0) {
+      RGB_SetColor(255, 128, 0);
+      //     digitalWrite(2,LOW);
+      //       Serial.println("fan on");
+    } else if (currentTempC > 54.0) {
+      RGB_SetColor(255, 255, 0);
+      //      digitalWrite(2,HIGH);
 
-     } else {
-       RGB_SetColor(0,255,0);
-     }
-    lastTempReading = millis();
+    } else {
+      RGB_SetColor(0, 255, 0);
     }
+    lastTempReading = millis();
+  }
 
-
+  if (millis() - lastDomainUpdate > 60000) {
+    updateDomain();
+  }
 }
-

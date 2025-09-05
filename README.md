@@ -50,3 +50,7 @@ Notes about SSL: While technically possible, deploying SSL on the ESP32 requires
 
 What most people do (including me) is to leave the device working on http over port 80 and deploy a reverse proxy to handle the SSL traffic over port 443. I used Caddy, which took literally minutes to install and set up, took my new certs and keys (no cooking!) and I was up and running in no time.
 
+-----------------------
+
+The software now supports updating a domain with duckdns.org.  Visit duckdns.org to create your own domain and get your token key. Drop those values into DOMAIN and DDNTOKEN respectively and the blog will update duckdns.org with your ip.
+

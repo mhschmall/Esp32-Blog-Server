@@ -5,10 +5,10 @@
 #include "ESPAsyncWebServer.h"
 #include "FS.h"
 #include "SD_MMC.h"
+#include "FFat.h"
 #include "DNSServer.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
-//#include <map>
 #include "RGB_lamp.h"
 #include "time.h"
 #include "HTTPClient.h"
@@ -25,12 +25,14 @@
 //change these
 #define ADMIN_USERNAME ""
 #define ADMIN_PASSWORD ""
-// set true if you want to use duckdns.org
-#define USEDUCK true
+// uncomment if you want to use duckdns.org
+#define USEDUCK 
 //your duckdns.org domain
 #define DOMAIN ""
 //your duckdns.org token
 #define DDNSTOKEN ""
+//uncomment if you want to use a sd card
+#define USESD
 
 Preferences eeprom;
 HTTPClient http;
@@ -48,7 +50,7 @@ float currentTempC = 0.0;
 //pinMode(2, OUTPUT);  //active fan control if installed
 //digitalWrite(2,LOW); //off
 
-File uploadFile;
+
 
 AsyncWebServer server(80);
 
@@ -67,7 +69,7 @@ void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void updateDomain() {
-  if (USEDUCK){
+#ifdef USEDUCK
  // Specify the URL
   String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNSTOKEN);
   http.begin(url); 
@@ -82,14 +84,13 @@ void updateDomain() {
     Serial.println(httpResponseCode);
   }
   http.end();
+#endif
   lastDomainUpdate = millis();
-  }
 }
 
 
 void RGB_SetMode(uint8_t mode) {
   currentLEDMode = mode;
-
   if (mode == 0) {
     // Turn off LED immediately
     Set_Color(0, 0, 0);
@@ -115,14 +116,25 @@ unsigned int returnPageServed() {
 
 
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+
+  File uploadFile; 
   // Stage 1: The start of the upload (index == 0)
+  
   if (!index) {
     // Open the file in write mode ("w")
+#ifdef USESD  
     if (SD_MMC.exists("/entries.json")) {
       SD_MMC.rename("/entries.json", "/entries.bak");
     }
     uploadFile = SD_MMC.open("/entries.json", FILE_WRITE);
-    Serial.printf("Starting upload of %s\n", filename.c_str());
+    
+#else
+   if (FFat.exists("/entries.json")) {
+      FFat.rename("/entries.json", "/entries.bak");
+    }
+    uploadFile = FFat.open("/entries.json", FILE_WRITE);
+#endif
+  Serial.printf("Starting upload of %s\n", filename.c_str());
   }
 
   // Stage 2: In-progress data chunks (len > 0)
@@ -144,24 +156,38 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
 
 
 void createEntriesFile() {
+File filehndl;
+#ifdef USESD  
   if (!SD_MMC.exists(entriesFile)) {
     Serial.println("Entries file not found. Generating default.");
-    File file = SD_MMC.open(entriesFile, FILE_WRITE);
-    if (!file) {
-      Serial.println("Failed to open entries file for writing.");
+    filehndl = SD_MMC.open(entriesFile, FILE_WRITE);
+  }
+#else 
+  if (!FFat.exists(entriesFile)){
+    Serial.println("Entries file not found. Generating default.");
+    filehndl = FFat.open(entriesFile, FILE_WRITE);
+  }
+#endif
+
+  if (!filehndl) {
+      Serial.println("Entries file exists, skipping creation");
     } else {
       Serial.println("created entries file");
-      file.println("{");
-      file.println("\"entries\":[]");
-      file.println("}");
-      file.close();
+      filehndl.println("{");
+      filehndl.println("\"entries\":[]");
+      filehndl.println("}");
+      filehndl.close();
     }
-  }
 }
 
 // helper: read JSON file into DynamicJsonDocument
 bool loadEntries(DynamicJsonDocument &doc) {
-  File file = SD_MMC.open(entriesFile, FILE_READ);
+  File file;  
+#ifdef USESD  
+  file = SD_MMC.open(entriesFile, FILE_READ);
+#else
+  file = FFat.open(entriesFile, FILE_READ);
+#endif
   if (!file) return false;
   DeserializationError error = deserializeJson(doc, file);
   file.close();
@@ -170,7 +196,13 @@ bool loadEntries(DynamicJsonDocument &doc) {
 
 // helper: save JSON doc back to file
 bool saveEntries(DynamicJsonDocument &doc) {
-  File file = SD_MMC.open(entriesFile, FILE_WRITE);
+  File file;  
+#ifdef USESD  
+  file = SD_MMC.open(entriesFile, FILE_WRITE);
+#else
+  file = FFat.open(entriesFile, FILE_WRITE);
+#endif
+  
   if (!file) return false;
   serializeJson(doc, file);
   file.close();
@@ -191,16 +223,23 @@ void setup() {
   btStop();
 
   // Initialize SD card
-  Serial.println("Initializing SD Card...");
-  if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
+#ifdef USESD
+   if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
     Serial.println("ERROR: SDMMC Pin configuration failed!");
     return;
-  }
-
-  if (!SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT, 12)) {
-    Serial.println("SD Card Mount Failed");
-    return;
-  }
+   }
+   if (!SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT, 12)) {
+        Serial.println("SD Card Mount Failed");
+        return;
+    }
+    Serial.println("SD Card mounted");
+#else
+    if (!FFat.begin()) {
+        Serial.println("Failed to mount internal FAT filesystem");
+        return;
+    }
+    Serial.println("Internal FAT filesystem mounted");
+#endif
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) delay(500);
@@ -216,7 +255,11 @@ void setup() {
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
+#ifdef USESD
     request->send(SD_MMC, "/index.html", "text/html");
+#else
+    request->send(FFat, "/index.html", "text/html");
+#endif
   });
 
   // serve admin dashboard
@@ -224,11 +267,15 @@ void setup() {
     if (!request->authenticate(ADMIN_USERNAME, ADMIN_PASSWORD)) {
       return request->requestAuthentication();
     }
+#ifdef USESD
     request->send(SD_MMC, "/admin.html", "text/html");
+#else
+    request->send(FFat, "/admin.html", "text/html");
+#endif
   });
 
   server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SD_MMC, "text/html", "Server has been shut down");
+    request->send(200, "text/plain", "Server has been shut down");
     RGB_SetMode(0);
     Serial.println("Entering Deep Sleep");
     esp_deep_sleep_start();
@@ -330,7 +377,6 @@ void setup() {
     }
   });
 
-  // API to fetch entries (for index.html JS)
   // API to fetch entries
 
   server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -377,13 +423,23 @@ void setup() {
     },
     handleUpload);
 
+#ifdef USESD
   if (SD_MMC.exists("/preview.png")) {
     Serial.println("preview image enabled");
     server.serveStatic("/preview.png", SD_MMC, "/preview.png");
   }
+#else
+  if (FFat.exists("/preview.png")) {
+    Serial.println("preview image enabled");
+    server.serveStatic("/preview.png", FFat, "/preview.png");
+  }
+#endif
+
   updateDomain();
   server.begin();
+
 }
+
 
 void loop() {
 
@@ -406,7 +462,8 @@ void loop() {
     lastTempReading = millis();
   }
 
-  if (millis() - lastDomainUpdate > 600000) {
+  if (millis() - lastDomainUpdate > 3,600,000,000 ) {
+    //once an hour
     updateDomain();
   }
 }

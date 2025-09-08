@@ -15,7 +15,11 @@ Please refer to the settings_preview.png file for how to configure the arduino I
 
 Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 
-Set the SD* pins for the device you want to use. Currently set for Waveshare ESP32-S3
+Decide if you want use internal storage (you will need at least 6mb of internal storage) or external SD card. There are only 3 small files needed for the server. A large SD is not needed and if your chip has at least 16mb of flash, you can initially deploy without the SD card.
+
+If using a SD card, set the SD* pins for the device you want to use. Currently set for Waveshare ESP32-S3
+
+Decide if you want to use duckdns.org to handle your domain. Going this route allows you to use a dynamic IP for your host. See below.
 
 Set an admin account name and unique admin password. 
 
@@ -23,20 +27,23 @@ Set the correct time parameters, or your posting dates/times will be wrong.
 
 Currently index.html only shows five blog entries at a time. This can be changed by setting ENTRIES_PER_PAGE to a new value. Admin page is fixed at 5 entries per page.
 
-On boot, watch the serial output, it will tell you what IP your server is connected as. 
 
 ------------------
-
-The footprint for this is pretty small, just 2 html files and a json file, so you don't need a huge sd card for storage. Just copy the items in SD_CARD_LAYOUT to your fat32 formatted SD card. 
+Deployment:
 
 Before you deploy, you will need to edit the index.html header to include your title, slogan, and other meta data, otherwise you're just advertising me. :)
 
+If you are using a SD card, you will need to format it for FAT32, copy the files found in SD_CARD_LAYOUT to it and insert it into the device before powering it up. 
+
+On boot, watch the serial output, it will tell you what IP your server is connected as. 
+
+On first boot, an empty entries.json (your blog database) will be created. Its on you to fill it.
+
+Now visit http://your.ip/admin, and after logging in, if you did not preload the SD card or you're using the internal storage, you will get a simple form to upload (in this order): index.html, preview.png, admin.html.
+
 Visiting http://your.ip/ will bring up the public blog
 
-
-----------------------
-
-visiting http://your.ip/admin will bring up the admin page. 
+visiting http://your.ip/admin will bring up the admin page.  
 
 When crafting a new post, you can use html markup to add links, pull pics in, etc. You just can't put quotes around any of it or the editing buttons get wierd. 
 

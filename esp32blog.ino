@@ -26,7 +26,7 @@
 #define ADMIN_USERNAME ""
 #define ADMIN_PASSWORD ""
 // uncomment if you want to use duckdns.org
-#define USEDUCK 
+//#define USEDUCK 
 //your duckdns.org domain
 #define DOMAIN ""
 //your duckdns.org token
@@ -51,6 +51,8 @@ float currentTempC = 0.0;
 //digitalWrite(2,LOW); //off
 
 
+uint32_t totalBytes;
+float totalMB;
 
 AsyncWebServer server(80);
 
@@ -115,45 +117,49 @@ unsigned int returnPageServed() {
 }
 
 
-void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
+                  uint8_t *data, size_t len, bool final) {
+  static File uploadFile;   // must be static to persist across chunks
+  static String targetPath; // store the actual file path being written
 
-  File uploadFile; 
   // Stage 1: The start of the upload (index == 0)
-  
   if (!index) {
-    // Open the file in write mode ("w")
-#ifdef USESD  
-    if (SD_MMC.exists("/entries.json")) {
-      SD_MMC.rename("/entries.json", "/entries.bak");
+    // Make sure filename starts with '/' so it’s valid
+    if (!filename.startsWith("/")) {
+      targetPath = "/" + filename;
+    } else {
+      targetPath = filename;
     }
-    uploadFile = SD_MMC.open("/entries.json", FILE_WRITE);
-    
+
+#ifdef USESD
+    if (SD_MMC.exists(targetPath)) {
+      SD_MMC.rename(targetPath, targetPath + ".bak");
+    }
+    uploadFile = SD_MMC.open(targetPath, FILE_WRITE);
 #else
-   if (FFat.exists("/entries.json")) {
-      FFat.rename("/entries.json", "/entries.bak");
+    if (FFat.exists(targetPath)) {
+      FFat.rename(targetPath, targetPath + ".bak");
     }
-    uploadFile = FFat.open("/entries.json", FILE_WRITE);
+    uploadFile = FFat.open(targetPath, FILE_WRITE);
 #endif
-  Serial.printf("Starting upload of %s\n", filename.c_str());
+
+    Serial.printf("Starting upload of %s\n", targetPath.c_str());
   }
 
   // Stage 2: In-progress data chunks (len > 0)
-  if (len) {
-    // Write the received data chunk to the file
+  if (len && uploadFile) {
     uploadFile.write(data, len);
     Serial.printf("Writing %u bytes at index %u\n", len, index);
   }
 
   // Stage 3: The end of the upload (final == true)
-  if (final) {
-    uploadFile.close();  // Close the file
-    Serial.printf("Upload finished: %s, size: %u\n", filename.c_str(), index + len);
+  if (final && uploadFile) {
+    uploadFile.close();
+    Serial.printf("Upload finished: %s, size: %u\n", targetPath.c_str(), index + len);
 
-    // Send a response to the client after the upload is complete
     request->send(200, "text/plain", "File uploaded successfully!");
   }
 }
-
 
 void createEntriesFile() {
 File filehndl;
@@ -222,6 +228,7 @@ void setup() {
   Serial.begin(115200);
   btStop();
 
+
   // Initialize SD card
 #ifdef USESD
    if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
@@ -234,11 +241,17 @@ void setup() {
     }
     Serial.println("SD Card mounted");
 #else
-    if (!FFat.begin()) {
-        Serial.println("Failed to mount internal FAT filesystem");
-        return;
+    if (!FFat.begin(true)) {
+        Serial.println("Failed to mount internal FAT filesystem, formatting");
+        while (1) delay(1000);
     }
     Serial.println("Internal FAT filesystem mounted");
+
+    totalBytes = FFat.totalBytes();
+    totalMB = (float)totalBytes / (1024.0 * 1024.0);
+    Serial.print("File system size: ");
+    Serial.print(totalMB, 2); // Print with 2 decimal places
+    Serial.println(" MB");
 #endif
 
   WiFi.begin(ssid, password);
@@ -268,9 +281,14 @@ void setup() {
       return request->requestAuthentication();
     }
 #ifdef USESD
-    request->send(SD_MMC, "/admin.html", "text/html");
+ if (!SD_MMC.exists("/admin.html")) {
+    request->send(200,"text/html","<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
+ } else request->send(SD_MMC, "/admin.html", "text/html");
+
 #else
-    request->send(FFat, "/admin.html", "text/html");
+    if (!FFat.exists("/admin.html")) {
+    request->send(200,"text/html","<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
+ } else request->send(FFat, "/admin.html", "text/html");
 #endif
   });
 
@@ -464,6 +482,6 @@ void loop() {
 
   if (millis() - lastDomainUpdate > 3,600,000,000 ) {
     //once an hour
-    updateDomain();
+   updateDomain();
   }
 }

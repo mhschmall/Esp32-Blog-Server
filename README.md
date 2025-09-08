@@ -15,9 +15,9 @@ Please refer to the settings_preview.png file for how to configure the arduino I
 
 Set the SSID and password for the access point you are connecting to. No connecting to a network behind a captive portal at this time.
 
-Decide if you want use internal storage (you will need at least 6mb of internal storage) or external SD card. There are only 3 small files needed for the server. A large SD is not needed and if your chip has at least 16mb of flash, you can initially deploy without the SD card.
+Decide if you want use internal storage (you will need at least 6mb of internal storage) or external SD card. There are only 3 small files needed for the server. A large SD card is not needed and if your chip has at least 16mb of flash, you can initially deploy without the SD card.
 
-If using a SD card, set the SD* pins for the device you want to use. Currently set for Waveshare ESP32-S3
+If using a SD card, set the SD pins for the device you want to use. Currently set for Waveshare ESP32-S3
 
 Decide if you want to use duckdns.org to handle your domain. Going this route allows you to use a dynamic IP for your host. See below.
 

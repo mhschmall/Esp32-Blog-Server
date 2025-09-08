@@ -7,6 +7,8 @@ If you're thinking that this is a lot like that Blog on a Wii project, you would
 
 This project is live on the internet at https://blogonesp32.duckdns.org/
 
+If you're a blogger and you're willing to cover costs (about $25 USD) and postage to you, write me and Ill cook one up and send it to you to try out. 
+
 -----------------
 
 In the esp32blog.ino file:

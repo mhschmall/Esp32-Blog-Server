@@ -63,3 +63,9 @@ What most people do (including me) is to leave the device working on http over p
 
 The software now supports updating a domain with duckdns.org.  Visit duckdns.org to create your own domain and get your token key. Drop those values into DOMAIN and DDNSTOKEN respectively and the blog will update duckdns.org with your ip.
 
+----------
+
+About us
+
+This is a static html page that you will need to edit your own info into. No editor? Throw it at an ai and have it make the changes for you. Find a nice pic and save it as aboutus.png or have the ai make you one while it edits your aboutus.html page.
+

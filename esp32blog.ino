@@ -26,7 +26,7 @@
 #define ADMIN_USERNAME ""
 #define ADMIN_PASSWORD ""
 // uncomment if you want to use duckdns.org
-#define USEDUCK 
+//#define USEDUCK 
 //your duckdns.org domain
 #define DOMAIN ""
 //your duckdns.org token
@@ -72,6 +72,38 @@ void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
   currentLEDMode = 2;
   Set_Color(g, r, b);
 }
+
+#include <Arduino.h>
+
+// Function to sanitize input strings
+// Removes non-printable ASCII characters, brackets {}, and trims whitespace from both ends
+String cleanInput(String input) {
+  String result = "";
+  // Remove non-printable ASCII characters and curly brackets
+  for (size_t i = 0; i < input.length(); i++) {
+    char c = input.charAt(i);
+    // Exclude curly brackets and non-printable ASCII
+    if (c >= 32 && c <= 126 && c != '{' && c != '}') {
+      result += c;
+    }
+  }
+  // Trim leading whitespace
+  int start = 0;
+  while (start < result.length() && isspace(result.charAt(start))) start++;
+  // Trim trailing whitespace
+  int end = result.length() - 1;
+  while (end >= start && isspace(result.charAt(end))) end--;
+  if (start > end) {
+    return "";
+  } else {
+    return result.substring(start, end + 1);
+  }
+}
+
+
+
+
+
 
 void updateDomain() {
 #ifdef USEDUCK
@@ -183,7 +215,7 @@ File filehndl;
     } else {
       Serial.println("created messages file");
       filehndl.println("{");
-      filehndl.println("\"entries\":[]");
+      filehndl.println("\"messages\":[]");
       filehndl.println("}");
       filehndl.close();
     }
@@ -425,7 +457,7 @@ void setup() {
   server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
-      
+      Serial.println(action);
       DynamicJsonDocument doc(8192);
 
       if (action == "upload") {
@@ -452,13 +484,17 @@ void setup() {
         String email = request->getParam("email", true)->value();
         String subject = request->getParam("subject", true)->value();
         String content = request->getParam("content", true)->value();
+        Serial.print(name );
+        Serial.print(email );
+        Serial.print(subject );
+        Serial.println(content);
         JsonArray messages = doc["messages"].as<JsonArray>();
         JsonObject newEntry = messages.createNestedObject();
 
-        newEntry["name"] = name;
-        newEntry["email"] = email;
-        newEntry["subject"] = subject;
-        newEntry["content"] = content;
+        newEntry["name"] = cleanInput(name);
+        newEntry["email"] = cleanInput(email);
+        newEntry["subject"] = cleanInput(subject);
+        newEntry["content"] = cleanInput(content);
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
         saveMessages(doc);
        request->send(200);
@@ -476,7 +512,7 @@ void setup() {
           }
         }
         saveMessages(doc);
-        request->send(200, "text/plain", "Entry deleted");
+        request->send(200, "text/plain", "Message deleted");
       }else if (action == "delete") {
         if (!loadEntries(doc)) {
         doc["entries"] = JsonArray();

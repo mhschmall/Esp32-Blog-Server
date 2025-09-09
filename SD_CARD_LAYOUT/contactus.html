@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Contact Spiffy Productions – Send us a message">
+  <title>Contact Us</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background-color: #f9f9f9; }
+    .topnav { overflow: hidden; background-color: #333; }
+    .topnav a { float: left; display: block; color: #f2f2f2; text-align: center; padding: 14px 16px; text-decoration: none; }
+    .topnav a:hover { background-color: #ddd; color: black; }
+    .container { max-width: 600px; margin: 30px auto; background: white; padding: 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; text-align: center; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { resize: vertical; min-height: 120px; }
+    button { margin-top: 20px; padding: 12px 20px; border: none; background-color: #333; color: white; font-size: 16px; cursor: pointer; border-radius: 4px; width: 100%; }
+    button:hover { background-color: #555; }
+    #status { margin-top: 20px; text-align: center; font-weight: bold; color: green; display: none; }
+    .footer { background-color: #ddd; padding: 10px; text-align: center; margin-top: 40px; }
+  </style>
+</head>
+<body>
+
+<div class="topnav">
+  <a href="/">Home</a>
+  <a href="/contact" style="float:right;">Contact Us</a>
+</div>
+
+<div class="container">
+  <h2>Contact Us</h2>
+  <form id="contactForm">
+    <!-- Hidden action field -->
+    <input type="hidden" name="action" value="uploadmessage">
+    
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="subject">Subject</label>
+    <input type="text" id="subject" name="subject" required>
+
+    <label for="content">Message</label>
+    <textarea id="content" name="content" required></textarea>
+
+
+    <button type="submit">Send Message</button>
+  </form>
+
+  <p id="status">Message Sent!</p>
+</div>
+
+<div class="footer">
+  <p>&copy; 2025 Spiffy Productions</p>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("contactForm");
+
+  form.addEventListener("submit", async function(event) {
+    event.preventDefault(); // stop normal form submit
+
+    const formData = new FormData(this);
+    const response = await fetch("/forms", { method: "POST", body: formData });
+
+    if (response.ok) {
+      document.getElementById("status").style.display = "block";
+      this.reset(); // clear form fields
+    } else {
+      alert("Error sending message. Please try again.");
+    }
+  });
+});
+</script>
+
+</body>
+</html>

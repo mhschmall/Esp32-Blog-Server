@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="About Us – Learn more about the blogonesp32 project">
+  <title>About Us</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background-color: #f9f9f9; }
+    .topnav { overflow: hidden; background-color: #333; }
+    .topnav a { float: left; display: block; color: #f2f2f2; text-align: center; padding: 14px 16px; text-decoration: none; }
+    .topnav a:hover { background-color: #ddd; color: black; }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 30px;
+    }
+    .left-col {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .left-col img {
+      max-width: 100%;
+      border-radius: 6px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      max-height: 330px;
+      object-fit: cover;
+    }
+    .right-col {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .input-row {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 1em;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    .contact-link {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 12px 24px;
+      background-color: #333;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+    .contact-link:hover {
+      background-color: #555;
+    }
+    h2 {
+      margin-top: 0;
+      text-align: center;
+      margin-bottom: 28px;
+      width: 100%;
+    }
+    .footer { background-color: #ddd; padding: 10px; text-align: center; margin-top: 40px; }
+    @media (max-width: 700px) {
+      .container {
+        flex-direction: column;
+        gap: 0;
+      }
+      .left-col, .right-col {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topnav">
+  <a href="/">Home</a>
+</div>
+
+<h2>About Us</h2>
+<div class="container">
+  <div class="left-col">
+    <img src="/aboutus.png" alt="About Us Photo">
+  </div>
+  <div class="right-col">
+    <div class="input-row">
+      <label for="about-name">Who We Are</label>
+      <input type="text" id="about-name" name="about-name" readonly value="Spiffy Productions">
+    </div>
+    <div class="input-row">
+      <label for="about-text">Why did we do this?</label>
+      <textarea id="about-text" readonly name="about-text">
+Simple blogging platform that runs on an ESP32. Currently designed for a Waveshare ESP32-S3-LCD-1.47, it could run on any ESP32 with a few changes, including the little XIAO SEEED ESP32 S3 Sense which is about the size of a postage stamp.
+
+These boards are pretty feature packed and I definitely like the whole USB stick aspect to using and powering them.
+
+If you're thinking that this is a lot like that Blog on a Wii project, you would be correct. I was definitely inspired by that project, but the final push was google's AI trying to convince me that an ESP32 could not host blogging software.
+      </textarea>
+    </div>
+    <div class="input-row">
+      <label for="about-link">Github Repository</label>
+      <input type="text" id="about-link" name="about-link" readonly value="https://github.com/mhschmall/Esp32-Blog-Server">
+    </div>
+    <a class="contact-link" href="/contact">Contact Me</a>
+  </div>
+</div>
+
+<div class="footer">
+  <p>&copy; 2025 Spiffy Productions</p>
+</div>
+
+</body>
+</html>

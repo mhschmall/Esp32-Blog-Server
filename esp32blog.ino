@@ -26,7 +26,7 @@
 #define ADMIN_USERNAME ""
 #define ADMIN_PASSWORD ""
 // uncomment if you want to use duckdns.org
-//#define USEDUCK 
+#define USEDUCK 
 //your duckdns.org domain
 #define DOMAIN ""
 //your duckdns.org token
@@ -34,8 +34,7 @@
 //uncomment if you want to use a sd card
 #define USESD
 
-Preferences eeprom;
-HTTPClient http;
+int ENTRIES_PER_PAGE = 5;
 
 const char *ssid = "";
 const char *password = "";
@@ -50,17 +49,21 @@ float currentTempC = 0.0;
 //pinMode(2, OUTPUT);  //active fan control if installed
 //digitalWrite(2,LOW); //off
 
-
+uint32_t usedBytes;
 uint32_t totalBytes;
 float totalMB;
 
-AsyncWebServer server(80);
-
 String entriesFile = "/entries.json";
-int ENTRIES_PER_PAGE = 5;
+String messagesFile = "/messages.json";
 
 uint8_t currentLEDMode = 0;  // 0=off, 1=rainbow, 2=solid color
 uint8_t solidR = 0, solidG = 0, solidB = 0;
+
+Preferences eeprom;
+HTTPClient http;
+
+AsyncWebServer server(80);
+
 
 void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
   solidR = r;
@@ -161,6 +164,31 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   }
 }
 
+void createMessagesFile() {
+File filehndl;
+#ifdef USESD  
+  if (!SD_MMC.exists(messagesFile)) {
+    Serial.println("Messages file not found. Generating default.");
+    filehndl = SD_MMC.open(messagesFile, FILE_WRITE);
+  }
+#else 
+  if (!FFat.exists(messagesFile)){
+    Serial.println("Messages file not found. Generating default.");
+    filehndl = FFat.open(messagesFile, FILE_WRITE);
+  }
+#endif
+
+  if (!filehndl) {
+      Serial.println("Messages file exists, skipping creation");
+    } else {
+      Serial.println("created messages file");
+      filehndl.println("{");
+      filehndl.println("\"entries\":[]");
+      filehndl.println("}");
+      filehndl.close();
+    }
+}
+
 void createEntriesFile() {
 File filehndl;
 #ifdef USESD  
@@ -186,6 +214,19 @@ File filehndl;
     }
 }
 
+bool loadMessages(DynamicJsonDocument &doc) {
+  File file;  
+#ifdef USESD  
+  file = SD_MMC.open(messagesFile, FILE_READ);
+#else
+  file = FFat.open(messagesFile, FILE_READ);
+#endif
+  if (!file) return false;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+  return !error;
+}
+
 // helper: read JSON file into DynamicJsonDocument
 bool loadEntries(DynamicJsonDocument &doc) {
   File file;  
@@ -198,6 +239,21 @@ bool loadEntries(DynamicJsonDocument &doc) {
   DeserializationError error = deserializeJson(doc, file);
   file.close();
   return !error;
+}
+
+// helper: save JSON doc back to file
+bool saveMessages(DynamicJsonDocument &doc) {
+  File file;  
+#ifdef USESD  
+  file = SD_MMC.open(messagesFile, FILE_WRITE);
+#else
+  file = FFat.open(messagesFile, FILE_WRITE);
+#endif
+  
+  if (!file) return false;
+  serializeJson(doc, file);
+  file.close();
+  return true;
 }
 
 // helper: save JSON doc back to file
@@ -225,9 +281,11 @@ String WhatTimeIsIt() {
 
 
 void setup() {
+  
+  
   Serial.begin(115200);
   btStop();
-
+  Serial.println("Esp32 blog starting up");
 
   // Initialize SD card
 #ifdef USESD
@@ -245,11 +303,16 @@ void setup() {
         Serial.println("Failed to mount internal FAT filesystem, formatting");
         while (1) delay(1000);
     }
+    //You want to keep an eye on space. If your internal file system fills up, tile to switch to SD
     Serial.println("Internal FAT filesystem mounted");
-
     totalBytes = FFat.totalBytes();
+    usedBytes = FFat.usedBytes();
     totalMB = (float)totalBytes / (1024.0 * 1024.0);
     Serial.print("File system size: ");
+    Serial.print(totalMB, 2); // Print with 2 decimal places
+    Serial.println(" MB");
+    totalMB = ((float)totalBytes - (float)usedBytes) / (1024 * 1024);
+    Serial.print("File system free: ");
     Serial.print(totalMB, 2); // Print with 2 decimal places
     Serial.println(" MB");
 #endif
@@ -265,6 +328,7 @@ void setup() {
   // server.setSSL(server_cert, server_key);
 
   createEntriesFile();
+  createMessagesFile();
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
@@ -272,6 +336,27 @@ void setup() {
     request->send(SD_MMC, "/index.html", "text/html");
 #else
     request->send(FFat, "/index.html", "text/html");
+#endif
+  });
+
+
+//serve contact us page
+ server.on("/contact", HTTP_GET, [](AsyncWebServerRequest *request) {
+    updatePageServed();
+#ifdef USESD
+    request->send(SD_MMC, "/contactus.html", "text/html");
+#else
+    request->send(FFat, "/contactus.html", "text/html");
+#endif
+  });
+
+//serve about us page
+ server.on("/aboutus", HTTP_GET, [](AsyncWebServerRequest *request) {
+    updatePageServed();
+#ifdef USESD
+    request->send(SD_MMC, "/aboutus.html", "text/html");
+#else
+    request->send(FFat, "/aboutus.html", "text/html");
 #endif
   });
 
@@ -340,13 +425,13 @@ void setup() {
   server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
-
+      
       DynamicJsonDocument doc(8192);
-      if (!loadEntries(doc)) {
-        doc["entries"] = JsonArray();
-      }
 
       if (action == "upload") {
+       if (!loadEntries(doc)) {
+        doc["entries"] = JsonArray();
+       }
         String title = request->getParam("title", true)->value();
         String content = request->getParam("content", true)->value();
 
@@ -359,7 +444,43 @@ void setup() {
         saveEntries(doc);
         request->send(200, "text/plain", "Entry uploaded");
 
-      } else if (action == "delete") {
+      } else if (action == "uploadmessage"){
+        if (!loadMessages(doc)) {
+        doc["messages"] = JsonArray();
+        } 
+        String name = request->getParam("name", true)->value();
+        String email = request->getParam("email", true)->value();
+        String subject = request->getParam("subject", true)->value();
+        String content = request->getParam("content", true)->value();
+        JsonArray messages = doc["messages"].as<JsonArray>();
+        JsonObject newEntry = messages.createNestedObject();
+
+        newEntry["name"] = name;
+        newEntry["email"] = email;
+        newEntry["subject"] = subject;
+        newEntry["content"] = content;
+        newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
+        saveMessages(doc);
+       request->send(200);
+       
+      }else if (action == "deletemessage") {
+        if (!loadMessages(doc)) {
+        doc["messages"] = JsonArray();
+        } 
+        String id = request->getParam("id", true)->value();
+        JsonArray messages = doc["messages"].as<JsonArray>();
+        for (int i = 0; i < messages.size(); i++) {
+          if (messages[i]["timestamp"] == id) {
+            messages.remove(i);
+            break;
+          }
+        }
+        saveMessages(doc);
+        request->send(200, "text/plain", "Entry deleted");
+      }else if (action == "delete") {
+        if (!loadEntries(doc)) {
+        doc["entries"] = JsonArray();
+        }
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (int i = 0; i < entries.size(); i++) {
@@ -371,6 +492,9 @@ void setup() {
         saveEntries(doc);
         request->send(200, "text/plain", "Entry deleted");
       } else if (action == "edit") {
+        if (!loadEntries(doc)) {
+        doc["entries"] = JsonArray();
+        }
         String id = request->getParam("id", true)->value();
         String newContent = request->hasParam("content", true)
                               ? request->getParam("content", true)->value()
@@ -432,6 +556,34 @@ void setup() {
     request->send(200, "application/json", response);
   });
 
+server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument doc(8192);
+    if (!loadMessages(doc)) {
+      request->send(200, "application/json", "{\"messages\":[]}");
+      return;
+    }
+
+    JsonArray messages = doc["messages"].as<JsonArray>();
+
+    // Default: paginated view
+    int start = 0;
+    if (request->hasParam("start")) {
+      start = request->getParam("start")->value().toInt();
+    }
+
+    DynamicJsonDocument out(8192);
+    JsonArray slice = out.createNestedArray("messages");
+
+    for (int i = start; i < start + ENTRIES_PER_PAGE && i < messages.size(); i++) {
+      slice.add(messages[i]);
+    }
+
+    String response;
+    serializeJson(out, response);
+    request->send(200, "application/json", response);
+  });
+
+
   // Import entries via JSON upload
   server.on(
     "/import", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -446,16 +598,25 @@ void setup() {
     Serial.println("preview image enabled");
     server.serveStatic("/preview.png", SD_MMC, "/preview.png");
   }
+  if (SD_MMC.exists("/aboutus.png")) {
+    Serial.println("about us image enabled");
+    server.serveStatic("/aboutus.png", SD_MMC, "/aboutus.png");
+  }
 #else
   if (FFat.exists("/preview.png")) {
     Serial.println("preview image enabled");
     server.serveStatic("/preview.png", FFat, "/preview.png");
   }
+    if (FFat.exists("/aboutus.png")) {
+    Serial.println("about us image enabled");
+    server.serveStatic("/aboutus.png", FFat, "/aboutus.png");
+  }
+
 #endif
 
   updateDomain();
   server.begin();
-
+  Serial.println("Esp32 blog server up");
 }
 
 
@@ -482,6 +643,6 @@ void loop() {
 
   if (millis() - lastDomainUpdate > 3,600,000,000 ) {
     //once an hour
-   updateDomain();
+    updateDomain();
   }
 }

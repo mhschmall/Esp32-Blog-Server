@@ -5,163 +5,64 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-* {
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-body {
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-}
+* { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; }
 
 /* Top navigation bar */
-.topnav {
-  overflow: hidden;
-  background-color: #333;
-}
-
-.topnav a {
-  float: left;
-  display: block;
-  color: #f2f2f2;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-}
-
-.topnav a:hover {
-  background-color: #ddd;
-  color: black;
-}
+.topnav { overflow: hidden; background-color: #333; }
+.topnav a { float: left; display: block; color: #f2f2f2; text-align: center;
+  padding: 14px 16px; text-decoration: none; }
+.topnav a:hover { background-color: #ddd; color: black; }
 
 /* Content area */
-.content {
-  background-color: #f9f9f9;
-  padding: 20px;
-  min-height: 400px;
-}
-
-form {
-  background: white;
-  padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-
+.content { background-color: #f9f9f9; padding: 20px; min-height: 400px; }
+form { background: white; padding: 15px; border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
 form input[type="text"], form textarea {
-  width: 100%;
-  padding: 8px;
-  margin: 8px 0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;
 }
 
 /* Reusable button style */
-.btn-primary {
-  padding: 10px 15px;
-  background-color: #333;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
+.btn-primary { padding: 10px 15px; background-color: #333; color: white;
+  border: none; border-radius: 4px; cursor: pointer; }
+.btn-primary:hover { background-color: #555; }
 
-.btn-primary:hover {
-  background-color: #555;
+/* Entry/message list */
+.entry, .message {
+  background: white; padding: 15px; margin-bottom: 15px;
+  border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-
-/* Blog entry list */
-.entry {
-  background: white;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+.entry h3, .message h3 { margin: 0; }
+.entry button, .message button {
+  margin-right: 10px; margin-top: 10px; padding: 6px 12px;
+  border: none; border-radius: 4px; cursor: pointer;
 }
-
-.entry h3 {
-  margin: 0;
-}
-
-.entry button {
-  margin-right: 10px;
-  margin-top: 10px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.delete-btn {
-  background-color: #b33;
-  color: white;
-}
-
-.edit-btn {
-  background-color: #337ab7;
-  color: white;
-}
-
+.delete-btn { background-color: #b33; color: white; }
+.edit-btn { background-color: #337ab7; color: white; }
 .delete-btn:hover { background-color: #d44; }
 .edit-btn:hover { background-color: #559ed6; }
 
 /* Pagination */
-#pagination {
-  text-align: center;
-  margin-top: 20px;
-}
-
+#pagination { text-align: center; margin-top: 20px; }
 #pagination button {
-  margin: 0 5px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 4px;
-  background-color: #333;
-  color: white;
-  cursor: pointer;
+  margin: 0 5px; padding: 8px 14px; border: none; border-radius: 4px;
+  background-color: #333; color: white; cursor: pointer;
 }
-
-#pagination button:disabled {
-  background-color: #aaa;
-  cursor: not-allowed;
-}
-
-#pageIndicator {
-  display: block;
-  margin-top: 10px;
-  font-size: 14px;
-  color: #555;
-}
+#pagination button:disabled { background-color: #aaa; cursor: not-allowed; }
+#pageIndicator { display: block; margin-top: 10px; font-size: 14px; color: #555; }
 
 /* Footer */
-.footer {
-  background-color: #ddd;
-  padding: 10px;
-  text-align: center;
-}
+.footer { background-color: #ddd; padding: 10px; text-align: center; }
 
 /* Modal editor */
 #editModal {
-  display: none;
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.6);
-  /*display: flex;*/
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  display: none; position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%; background: rgba(0,0,0,0.6);
+  align-items: center; justify-content: center; z-index: 1000;
 }
-
 #editModalContent {
-  background: #fff;
-  padding: 20px;
-  border-radius: 6px;
-  width: 90%;
-  max-width: 600px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  background: #fff; padding: 20px; border-radius: 6px;
+  width: 90%; max-width: 600px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 </style>
 </head>
@@ -172,7 +73,6 @@ form input[type="text"], form textarea {
   <a href="/admin">Admin</a>
   <a href="/shutdown">Off</a>
   <a href="/logout">Logout</a>
-
 </div>
 
 <div class="content">
@@ -186,15 +86,18 @@ form input[type="text"], form textarea {
 
   <h2>Data Management</h2>
   <button id="exportBtn" class="btn-primary">Export All Entries</button>
-
   <form id="importForm" enctype="multipart/form-data" style="margin-top:15px;">
     <input type="file" id="importFile" name="file" accept=".json" required>
     <button type="submit" class="btn-primary">Import Entries</button> 
-WARNING! This will OVERWRITE your current entries.json file. Click Export All first! You've been warned.
+    WARNING! This will OVERWRITE your current entries.json file. Use Export All first! You were warned.
   </form> 
 
-  <h2>Manage Entries</h2>
-  <div id="entries"></div>
+  <h2>Manage</h2>
+  <div>
+    <button id="manageEntriesBtn" class="btn-primary">Manage Entries</button>
+    <button id="manageMessagesBtn" class="btn-primary">Manage Messages</button>
+  </div><p>
+  <div id="dataContainer"></div>
 
   <div id="pagination">
     <button id="prevBtn">Prev</button>
@@ -207,14 +110,15 @@ WARNING! This will OVERWRITE your current entries.json file. Click Export All fi
   <p id="footerText"></p>
 </div>
 
-<!-- Edit Modal -->
+<!-- Edit Modal (entries only) -->
 <div id="editModal">
   <div id="editModalContent">
     <h3>Edit Blog Entry</h3>
     <form id="editForm">
       <input type="hidden" name="id" id="editId">
       <input type="text" id="editTitle" placeholder="Title" required>
-      <textarea id="editContent" rows="10" style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px;" required></textarea>
+      <textarea id="editContent" rows="10" style="width:100%; padding:10px; margin:10px 0;
+        border:1px solid #ccc; border-radius:4px;" required></textarea>
       <div style="text-align:right;">
         <button type="button" onclick="closeEditModal()" class="btn-primary" style="background:#777;">Cancel</button>
         <button type="submit" class="btn-primary">Save Changes</button>
@@ -229,27 +133,36 @@ const pageSize = 5;
 let currentPage = 1;
 let totalPages = 1;
 let pageServed = 1;
+let currentView = "entries"; // "entries" or "messages"
 
 async function fetchPageServed() {
-  const response = await fetch("/pagecount");
-  const data = await response.json();
+  const res = await fetch("/pagecount");
+  const data = await res.json();
   pageServed = data.pagecount || 0;
   document.getElementById("footerText").textContent =
     `${pageServed} pages served, Copyright 2025 @Spiffy Productions`;
 }
 
-// fetch total count on startup
+// count for entries only
 async function fetchTotalPages() {
-  const response = await fetch("/count");
-  const data = await response.json();
-  const totalEntries = data.total || 0;
-  totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
+  if (currentView === "entries") {
+    const res = await fetch("/count");
+    const data = await res.json();
+    const totalEntries = data.total || 0;
+    totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
+  } else {
+    const res = await fetch("/messages?all=true");
+    const data = await res.json();
+    const list = data.messages || [];
+    const total = list.length;
+    totalPages = Math.max(1, Math.ceil(total / pageSize));
+  }
 }
 
 async function fetchEntries() {
-  const response = await fetch(`/entries?start=${start}`);
-  const data = await response.json();
-  const container = document.getElementById("entries");
+  const res = await fetch(`/entries?start=${start}`);
+  const data = await res.json();
+  const container = document.getElementById("dataContainer");
   container.innerHTML = "";
 
   if (data.entries && data.entries.length > 0) {
@@ -268,122 +181,144 @@ async function fetchEntries() {
   } else {
     container.innerHTML = "<p>No entries found.</p>";
   }
+  updatePagination();
+}
 
-  // update pagination state
+async function fetchMessages() {
+  const res = await fetch(`/messages?start=${start}`);
+  const data = await res.json();
+  const container = document.getElementById("dataContainer");
+  container.innerHTML = "";
+
+  if (data.messages && data.messages.length > 0) {
+    data.messages.forEach(msg => {
+      const div = document.createElement("div");
+      div.className = "message";
+      div.innerHTML = `
+        <h3>${msg.subject}</h3>
+        <p>${msg.content}</p>
+        <small>From: ${msg.name} (${msg.email})</small><br>
+        <small>ID: ${msg.timestamp}</small><br>
+        <button class="delete-btn" onclick="deleteMessage('${msg.timestamp}')">Delete</button>
+      `;
+      container.appendChild(div);
+    });
+  } else {
+    container.innerHTML = "<p>No messages found.</p>";
+  }
+  updatePagination();
+}
+
+function updatePagination() {
   document.getElementById("prevBtn").disabled = start === 0;
   document.getElementById("nextBtn").disabled = currentPage >= totalPages;
-
   document.getElementById("pageIndicator").textContent =
     `Page ${currentPage} of ${totalPages}`;
 }
 
-// Export
-document.getElementById("exportBtn").addEventListener("click", async () => {
-  const response = await fetch("/entries?all=true");
-  const data = await response.json();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "entries.json";
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// Import
-document.getElementById("importForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fileInput = document.getElementById("importFile");
-  if (!fileInput.files.length) return;
-
-  const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
-
-  await fetch("/import", { method: "POST", body: formData });
-  alert("Entries imported!");
-  await fetchTotalPages();
-  start = 0;
-  currentPage = 1;
-  fetchEntries();
-});
-
-// Delete
+// Delete entry
 async function deleteEntry(id) {
-  const formData = new FormData();
-  formData.append("action", "delete");
-  formData.append("id", id);
-
-  await fetch("/forms", { method: "POST", body: formData });
+  const fd = new FormData();
+  fd.append("action", "delete");
+  fd.append("id", id);
+  await fetch("/forms", { method: "POST", body: fd });
   await fetchTotalPages();
-  if (currentPage > totalPages) {
-    currentPage = totalPages;
-    start = (currentPage - 1) * pageSize;
-  }
+  if (currentPage > totalPages) { currentPage = totalPages; start = (currentPage-1)*pageSize; }
   fetchEntries();
 }
 
-// Edit modal
+// Delete message
+async function deleteMessage(id) {
+  const fd = new FormData();
+  fd.append("action", "deletemessage");
+  fd.append("id", id);
+  await fetch("/forms", { method: "POST", body: fd });
+  await fetchTotalPages();
+  if (currentPage > totalPages) { currentPage = totalPages; start = (currentPage-1)*pageSize; }
+  fetchMessages();
+}
+
+// Edit modal (entries only)
 function editEntry(id, title, content) {
   document.getElementById("editId").value = id;
   document.getElementById("editTitle").value = title;
   document.getElementById("editContent").value = content;
   document.getElementById("editModal").style.display = "flex";
 }
-
-function closeEditModal() {
-  document.getElementById("editModal").style.display = "none";
-}
+function closeEditModal() { document.getElementById("editModal").style.display = "none"; }
 
 document.getElementById("editForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const id = document.getElementById("editId").value;
   const newTitle = document.getElementById("editTitle").value;
   const newContent = document.getElementById("editContent").value;
-
-  const formData = new FormData();
-  formData.append("action", "edit");
-  formData.append("id", id);
-  formData.append("title", newTitle);
-  formData.append("content", newContent);
-
-  await fetch("/forms", { method: "POST", body: formData });
-  closeEditModal();
-  fetchEntries();
+  const fd = new FormData();
+  fd.append("action", "edit"); fd.append("id", id);
+  fd.append("title", newTitle); fd.append("content", newContent);
+  await fetch("/forms", { method: "POST", body: fd });
+  closeEditModal(); fetchEntries();
 });
 
 // Upload new entry
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const formData = new FormData(e.target);
-
-  await fetch("/forms", { method: "POST", body: formData });
+  const fd = new FormData(e.target);
+  await fetch("/forms", { method: "POST", body: fd });
   e.target.reset();
   await fetchTotalPages();
-  start = 0;
-  currentPage = 1;
+  start = 0; currentPage = 1;
+  fetchEntries();
+});
+
+// Export entries
+document.getElementById("exportBtn").addEventListener("click", async () => {
+  const res = await fetch("/entries?all=true");
+  const data = await res.json();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "entries.json"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Import entries
+document.getElementById("importForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fileInput = document.getElementById("importFile");
+  if (!fileInput.files.length) return;
+  const fd = new FormData();
+  fd.append("file", fileInput.files[0]);
+  await fetch("/import", { method: "POST", body: fd });
+  alert("Entries imported!");
+  await fetchTotalPages();
+  start = 0; currentPage = 1;
   fetchEntries();
 });
 
 // Pagination
 document.getElementById("prevBtn").addEventListener("click", () => {
-  if (start >= pageSize) {
-    start -= pageSize;
-    currentPage--;
-    fetchEntries();
-  }
+  if (start >= pageSize) { start -= pageSize; currentPage--; loadCurrentView(); }
 });
-
 document.getElementById("nextBtn").addEventListener("click", () => {
-  if (currentPage < totalPages) {
-    start += pageSize;
-    currentPage++;
-    fetchEntries();
-  }
+  if (currentPage < totalPages) { start += pageSize; currentPage++; loadCurrentView(); }
 });
 
-// Initial load
+function loadCurrentView() {
+  if (currentView === "entries") { fetchEntries(); }
+  else { fetchMessages(); }
+}
+
+// Switch views
+document.getElementById("manageEntriesBtn").addEventListener("click", async () => {
+  currentView = "entries"; start = 0; currentPage = 1;
+  await fetchTotalPages(); fetchEntries();
+});
+document.getElementById("manageMessagesBtn").addEventListener("click", async () => {
+  currentView = "messages"; start = 0; currentPage = 1;
+  await fetchTotalPages(); fetchMessages();
+});
+
+// Initial load: entries
 (async () => {
   await fetchTotalPages();
   await fetchPageServed();

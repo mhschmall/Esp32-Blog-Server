@@ -1,6 +1,8 @@
+// Esp32 Blog Server - simple blog server for esp32 platforms
+// written by mhschmall, released under MIT license
+//
+
 #include "Arduino.h"
-#define FF_USE_FASTSEEK 1
-#define SD_FREQ_KHZ 10000
 #include "WiFi.h"
 #include "ESPAsyncWebServer.h"
 #include "FS.h"
@@ -34,6 +36,12 @@
 //uncomment if you want to use a sd card
 #define USESD
 
+#ifdef USESD
+  #define MEMC SD_MMC
+#else
+  #define MEMC FFat
+#endif
+
 int ENTRIES_PER_PAGE = 5;
 
 const char *ssid = "";
@@ -46,8 +54,6 @@ const int daylightOffset_sec = 3600;  // Example for Daylight Saving Time
 unsigned long lastTempReading = 0;
 unsigned long lastDomainUpdate = 0;
 float currentTempC = 0.0;
-//pinMode(2, OUTPUT);  //active fan control if installed
-//digitalWrite(2,LOW); //off
 
 uint32_t usedBytes;
 uint32_t totalBytes;
@@ -73,8 +79,6 @@ void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
   Set_Color(g, r, b);
 }
 
-#include <Arduino.h>
-
 // Function to sanitize input strings
 // Removes non-printable ASCII characters, brackets {}, and trims whitespace from both ends
 String cleanInput(String input) {
@@ -99,10 +103,6 @@ String cleanInput(String input) {
     return result.substring(start, end + 1);
   }
 }
-
-
-
-
 
 
 void updateDomain() {
@@ -166,17 +166,10 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
       targetPath = filename;
     }
 
-#ifdef USESD
-    if (SD_MMC.exists(targetPath)) {
-      SD_MMC.rename(targetPath, targetPath + ".bak");
+    if (MEMC.exists(targetPath)) {
+      MEMC.rename(targetPath, targetPath + ".bak");
     }
-    uploadFile = SD_MMC.open(targetPath, FILE_WRITE);
-#else
-    if (FFat.exists(targetPath)) {
-      FFat.rename(targetPath, targetPath + ".bak");
-    }
-    uploadFile = FFat.open(targetPath, FILE_WRITE);
-#endif
+    uploadFile = MEMC.open(targetPath, FILE_WRITE);
 
     Serial.printf("Starting upload of %s\n", targetPath.c_str());
   }
@@ -196,77 +189,36 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
   }
 }
 
-void createMessagesFile() {
-File filehndl;
-#ifdef USESD  
-  if (!SD_MMC.exists(messagesFile)) {
-    Serial.println("Messages file not found. Generating default.");
-    filehndl = SD_MMC.open(messagesFile, FILE_WRITE);
+
+void createBlogJsonFile(String &jsonfile) {
+  File filehndl;
+  String jsondb;
+  if (!MEMC.exists(jsonfile)) {
+    Serial.println(String(jsonfile) + " file not found. Generating default.");    
+    filehndl = MEMC.open(jsonfile, FILE_WRITE);
   }
-#else 
-  if (!FFat.exists(messagesFile)){
-    Serial.println("Messages file not found. Generating default.");
-    filehndl = FFat.open(messagesFile, FILE_WRITE);
-  }
-#endif
 
   if (!filehndl) {
-      Serial.println("Messages file exists, skipping creation");
+      Serial.print(jsonfile);
+      Serial.println(" file exists, skipping creation");
     } else {
-      Serial.println("created messages file");
+      
+      if (jsonfile == "/entries.json"){
+        jsondb = "entries";
+      } else { jsondb = "messages";}
+
       filehndl.println("{");
-      filehndl.println("\"messages\":[]");
+      filehndl.println("\"" + String(jsondb) + "\":[]");
       filehndl.println("}");
       filehndl.close();
+      Serial.print(jsonfile);
+      Serial.println(" file created.");
     }
-}
-
-void createEntriesFile() {
-File filehndl;
-#ifdef USESD  
-  if (!SD_MMC.exists(entriesFile)) {
-    Serial.println("Entries file not found. Generating default.");
-    filehndl = SD_MMC.open(entriesFile, FILE_WRITE);
-  }
-#else 
-  if (!FFat.exists(entriesFile)){
-    Serial.println("Entries file not found. Generating default.");
-    filehndl = FFat.open(entriesFile, FILE_WRITE);
-  }
-#endif
-
-  if (!filehndl) {
-      Serial.println("Entries file exists, skipping creation");
-    } else {
-      Serial.println("created entries file");
-      filehndl.println("{");
-      filehndl.println("\"entries\":[]");
-      filehndl.println("}");
-      filehndl.close();
-    }
-}
-
-bool loadMessages(DynamicJsonDocument &doc) {
-  File file;  
-#ifdef USESD  
-  file = SD_MMC.open(messagesFile, FILE_READ);
-#else
-  file = FFat.open(messagesFile, FILE_READ);
-#endif
-  if (!file) return false;
-  DeserializationError error = deserializeJson(doc, file);
-  file.close();
-  return !error;
 }
 
 // helper: read JSON file into DynamicJsonDocument
-bool loadEntries(DynamicJsonDocument &doc) {
-  File file;  
-#ifdef USESD  
-  file = SD_MMC.open(entriesFile, FILE_READ);
-#else
-  file = FFat.open(entriesFile, FILE_READ);
-#endif
+bool loadJsonData(String &filehndl, DynamicJsonDocument &doc) {
+  File file = MEMC.open(filehndl, FILE_READ);
   if (!file) return false;
   DeserializationError error = deserializeJson(doc, file);
   file.close();
@@ -274,29 +226,8 @@ bool loadEntries(DynamicJsonDocument &doc) {
 }
 
 // helper: save JSON doc back to file
-bool saveMessages(DynamicJsonDocument &doc) {
-  File file;  
-#ifdef USESD  
-  file = SD_MMC.open(messagesFile, FILE_WRITE);
-#else
-  file = FFat.open(messagesFile, FILE_WRITE);
-#endif
-  
-  if (!file) return false;
-  serializeJson(doc, file);
-  file.close();
-  return true;
-}
-
-// helper: save JSON doc back to file
-bool saveEntries(DynamicJsonDocument &doc) {
-  File file;  
-#ifdef USESD  
-  file = SD_MMC.open(entriesFile, FILE_WRITE);
-#else
-  file = FFat.open(entriesFile, FILE_WRITE);
-#endif
-  
+bool saveJsonData(String &filehndl, DynamicJsonDocument &doc) {
+  File file = MEMC.open(filehndl, FILE_WRITE);
   if (!file) return false;
   serializeJson(doc, file);
   file.close();
@@ -313,8 +244,7 @@ String WhatTimeIsIt() {
 
 
 void setup() {
-  
-  
+
   Serial.begin(115200);
   btStop();
   Serial.println("Esp32 blog starting up");
@@ -325,7 +255,7 @@ void setup() {
     Serial.println("ERROR: SDMMC Pin configuration failed!");
     return;
    }
-   if (!SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT, 12)) {
+   if (!SD_MMC.begin("/sdcard", true)) {
         Serial.println("SD Card Mount Failed");
         return;
     }
@@ -335,7 +265,7 @@ void setup() {
         Serial.println("Failed to mount internal FAT filesystem, formatting");
         while (1) delay(1000);
     }
-    //You want to keep an eye on space. If your internal file system fills up, tile to switch to SD
+    //You want to keep an eye on space. If your internal file system fills up, time to switch to SD
     Serial.println("Internal FAT filesystem mounted");
     totalBytes = FFat.totalBytes();
     usedBytes = FFat.usedBytes();
@@ -355,41 +285,25 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println(WiFi.localIP());
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  // serve public index.html
 
-  // server.setSSL(server_cert, server_key);
-
-  createEntriesFile();
-  createMessagesFile();
+  createBlogJsonFile(entriesFile);
+  createBlogJsonFile(messagesFile);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
-#ifdef USESD
-    request->send(SD_MMC, "/index.html", "text/html");
-#else
-    request->send(FFat, "/index.html", "text/html");
-#endif
+    request->send(MEMC, "/index.html", "text/html");
   });
-
 
 //serve contact us page
  server.on("/contact", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
-#ifdef USESD
-    request->send(SD_MMC, "/contactus.html", "text/html");
-#else
-    request->send(FFat, "/contactus.html", "text/html");
-#endif
+    request->send(MEMC, "/contactus.html", "text/html");
   });
 
 //serve about us page
  server.on("/aboutus", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
-#ifdef USESD
-    request->send(SD_MMC, "/aboutus.html", "text/html");
-#else
-    request->send(FFat, "/aboutus.html", "text/html");
-#endif
+    request->send(MEMC, "/aboutus.html", "text/html");
   });
 
   // serve admin dashboard
@@ -397,16 +311,10 @@ void setup() {
     if (!request->authenticate(ADMIN_USERNAME, ADMIN_PASSWORD)) {
       return request->requestAuthentication();
     }
-#ifdef USESD
- if (!SD_MMC.exists("/admin.html")) {
+   if (!MEMC.exists("/admin.html")) {
     request->send(200,"text/html","<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
- } else request->send(SD_MMC, "/admin.html", "text/html");
+   } else request->send(MEMC, "/admin.html", "text/html");
 
-#else
-    if (!FFat.exists("/admin.html")) {
-    request->send(200,"text/html","<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
- } else request->send(FFat, "/admin.html", "text/html");
-#endif
   });
 
   server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -424,7 +332,7 @@ void setup() {
     DynamicJsonDocument doc(8192);
     int total = 0;
 
-    if (loadEntries(doc)) {
+    if (loadJsonData(entriesFile,doc)) {
       JsonArray entries = doc["entries"].as<JsonArray>();
       total = entries.size();
     }
@@ -457,11 +365,10 @@ void setup() {
   server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
-      Serial.println(action);
       DynamicJsonDocument doc(8192);
 
       if (action == "upload") {
-       if (!loadEntries(doc)) {
+       if (!loadJsonData(entriesFile,doc)) {
         doc["entries"] = JsonArray();
        }
         String title = request->getParam("title", true)->value();
@@ -473,21 +380,17 @@ void setup() {
         newEntry["title"] = title;
         newEntry["content"] = content;
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveEntries(doc);
+        saveJsonData(entriesFile,doc);
         request->send(200, "text/plain", "Entry uploaded");
 
       } else if (action == "uploadmessage"){
-        if (!loadMessages(doc)) {
+        if (!loadJsonData(messagesFile, doc)) {
         doc["messages"] = JsonArray();
         } 
         String name = request->getParam("name", true)->value();
         String email = request->getParam("email", true)->value();
         String subject = request->getParam("subject", true)->value();
         String content = request->getParam("content", true)->value();
-        Serial.print(name );
-        Serial.print(email );
-        Serial.print(subject );
-        Serial.println(content);
         JsonArray messages = doc["messages"].as<JsonArray>();
         JsonObject newEntry = messages.createNestedObject();
 
@@ -496,11 +399,11 @@ void setup() {
         newEntry["subject"] = cleanInput(subject);
         newEntry["content"] = cleanInput(content);
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveMessages(doc);
+        saveJsonData(messagesFile,doc);
        request->send(200);
        
       }else if (action == "deletemessage") {
-        if (!loadMessages(doc)) {
+        if (!loadJsonData(messagesFile,doc)) {
         doc["messages"] = JsonArray();
         } 
         String id = request->getParam("id", true)->value();
@@ -511,10 +414,10 @@ void setup() {
             break;
           }
         }
-        saveMessages(doc);
+        saveJsonData(messagesFile,doc);
         request->send(200, "text/plain", "Message deleted");
       }else if (action == "delete") {
-        if (!loadEntries(doc)) {
+        if (!loadJsonData(entriesFile,doc)) {
         doc["entries"] = JsonArray();
         }
         String id = request->getParam("id", true)->value();
@@ -525,10 +428,10 @@ void setup() {
             break;
           }
         }
-        saveEntries(doc);
+        saveJsonData(entriesFile,doc);
         request->send(200, "text/plain", "Entry deleted");
       } else if (action == "edit") {
-        if (!loadEntries(doc)) {
+        if (!loadJsonData(entriesFile,doc)) {
         doc["entries"] = JsonArray();
         }
         String id = request->getParam("id", true)->value();
@@ -547,7 +450,7 @@ void setup() {
             break;
           }
         }
-        saveEntries(doc);
+        saveJsonData(entriesFile,doc);
         request->send(200, "text/plain", "Entry updated");
       }
     } else {
@@ -559,7 +462,7 @@ void setup() {
 
   server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(8192);
-    if (!loadEntries(doc)) {
+    if (!loadJsonData(entriesFile,doc)) {
       request->send(200, "application/json", "{\"entries\":[]}");
       return;
     }
@@ -594,7 +497,7 @@ void setup() {
 
 server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(8192);
-    if (!loadMessages(doc)) {
+    if (!loadJsonData(messagesFile,doc)) {
       request->send(200, "application/json", "{\"messages\":[]}");
       return;
     }
@@ -629,26 +532,15 @@ server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
     },
     handleUpload);
 
-#ifdef USESD
-  if (SD_MMC.exists("/preview.png")) {
-    Serial.println("preview image enabled");
-    server.serveStatic("/preview.png", SD_MMC, "/preview.png");
-  }
-  if (SD_MMC.exists("/aboutus.png")) {
-    Serial.println("about us image enabled");
-    server.serveStatic("/aboutus.png", SD_MMC, "/aboutus.png");
-  }
-#else
-  if (FFat.exists("/preview.png")) {
-    Serial.println("preview image enabled");
-    server.serveStatic("/preview.png", FFat, "/preview.png");
-  }
-    if (FFat.exists("/aboutus.png")) {
-    Serial.println("about us image enabled");
-    server.serveStatic("/aboutus.png", FFat, "/aboutus.png");
-  }
 
-#endif
+  if (MEMC.exists("/preview.png")) {
+    Serial.println("preview image enabled");
+    server.serveStatic("/preview.png", MEMC, "/preview.png");
+  }
+  if (MEMC.exists("/aboutus.png")) {
+    Serial.println("about us image enabled");
+    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
+  }
 
   updateDomain();
   server.begin();

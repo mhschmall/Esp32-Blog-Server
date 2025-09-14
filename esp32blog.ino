@@ -1,14 +1,9 @@
-// Esp32 Blog Server - simple blog server for esp32 platforms
-// written by mhschmall, released under MIT license
-//
-
 #include "Arduino.h"
 #include "WiFi.h"
 #include "ESPAsyncWebServer.h"
 #include "FS.h"
 #include "SD_MMC.h"
 #include "FFat.h"
-#include "DNSServer.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include "RGB_lamp.h"
@@ -557,12 +552,8 @@ void loop() {
       RGB_SetColor(255, 0, 0);
     } else if (currentTempC > 59.0) {
       RGB_SetColor(255, 128, 0);
-      //     digitalWrite(2,LOW);
-      //       Serial.println("fan on");
     } else if (currentTempC > 54.0) {
       RGB_SetColor(255, 255, 0);
-      //      digitalWrite(2,HIGH);
-
     } else {
       RGB_SetColor(0, 255, 0);
     }

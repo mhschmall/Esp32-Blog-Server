@@ -89,7 +89,7 @@ form input[type="text"], form textarea {
   <form id="importForm" enctype="multipart/form-data" style="margin-top:15px;">
     <input type="file" id="importFile" name="file" accept=".json" required>
     <button type="submit" class="btn-primary">Import Entries</button> 
-    WARNING! This will OVERWRITE your current entries.json file. Use Export All first! You were warned.
+    <P> WARNING! This will OVERWRITE your current entries.json file. Use Export All first! You were warned.</p>
   </form> 
 
   <h2>Manage</h2>
@@ -197,7 +197,7 @@ async function fetchMessages() {
       div.innerHTML = `
         <h3>${msg.subject}</h3>
         <p>${msg.content}</p>
-        <small>From: ${msg.name} (${msg.email})</small><br>
+        <small>From: ${msg.name} (<a href="mailto:${msg.email}">${msg.email}</a>)</small><br>
         <small>ID: ${msg.timestamp}</small><br>
         <button class="delete-btn" onclick="deleteMessage('${msg.timestamp}')">Delete</button>
       `;

@@ -1,5 +1,5 @@
 # Esp32-Blog-Server
-Simple blogging platform that runs on an ESP32. Currently designed for a Waveshare ESP32-S3-LCD-1.47, it could run on any ESP32 with a few changes, including the little XIAO SEEED ESP32 S3 Sense which is about the size of a postage stamp. 
+Simple cellphone friendly blogging platform that runs on an ESP32. Currently designed for a Waveshare ESP32-S3-LCD-1.47, it could run on any ESP32 with a few changes, including the little XIAO SEEED ESP32 S3 Sense which is about the size of a postage stamp. 
 
 I was introduced to this Waveshare product via another project Im sorta contributing to (ESP32 powered offline media server). These boards are pretty feature packed and I definitely like the whole USB stick aspect to using and powering them.
 

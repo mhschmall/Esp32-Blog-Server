@@ -19,15 +19,14 @@
 #define SD_D2_PIN 17
 #define SD_D3_PIN 21
 
-//change these
-#define ADMIN_USERNAME ""
-#define ADMIN_PASSWORD ""
+
+
 // uncomment if you want to use duckdns.org
-//#define USEDUCK 
+#define USEDUCK 
 //your duckdns.org domain
-#define DOMAIN ""
+#define DOMAIN "your domain" //just the bit in front of .duckdns.org
 //your duckdns.org token
-#define DDNSTOKEN ""
+#define DDNSTOKEN "your ddns token"
 //uncomment if you want to use a sd card
 #define USESD
 
@@ -37,10 +36,17 @@
   #define MEMC FFat
 #endif
 
+//change these here or via the admin page
+struct AdminSettings {
+  String adminName = "blogonesp32";
+  String adminPassword = "changemenow";
+};
+
+AdminSettings settings; 
 int ENTRIES_PER_PAGE = 5;
 
-const char *ssid = "";
-const char *password = "";
+const char *ssid = "your ssid";
+const char *password = "your ssid password";
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -25200;    // Example for PDT (GMT-7) in seconds
@@ -49,6 +55,8 @@ const int daylightOffset_sec = 3600;  // Example for Daylight Saving Time
 unsigned long lastTempReading = 0;
 unsigned long lastDomainUpdate = 0;
 float currentTempC = 0.0;
+//pinMode(2, OUTPUT);  //active fan control if installed
+//digitalWrite(2,LOW); //off
 
 uint32_t usedBytes;
 uint32_t totalBytes;
@@ -56,6 +64,7 @@ float totalMB;
 
 String entriesFile = "/entries.json";
 String messagesFile = "/messages.json";
+String configFile = "/config.json";
 
 uint8_t currentLEDMode = 0;  // 0=off, 1=rainbow, 2=solid color
 uint8_t solidR = 0, solidG = 0, solidB = 0;
@@ -65,13 +74,27 @@ HTTPClient http;
 
 AsyncWebServer server(80);
 
-
 void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
   solidR = r;
   solidG = g;
   solidB = b;
   currentLEDMode = 2;
   Set_Color(g, r, b);
+}
+
+bool createSettings(String &jsonfile) {
+  bool success;
+  if (!MEMC.exists(jsonfile)) {
+    Serial.println(String(jsonfile) + " file not found. Generating default.");
+    DynamicJsonDocument doc(512);
+     doc["adminName"] = settings.adminName;
+     doc["adminPassword"] = settings.adminPassword;
+    success = saveJsonData(jsonfile, doc);
+  } else {
+     Serial.println(String(jsonfile) + " file exists, skipping creation.");
+     success = false;
+     }
+  return success;
 }
 
 // Function to sanitize input strings
@@ -211,6 +234,32 @@ void createBlogJsonFile(String &jsonfile) {
     }
 }
 
+bool readSettings(String &filehndl) {
+  DynamicJsonDocument doc(512);
+
+  // Try to load JSON from file
+  if (!loadJsonData(filehndl, doc)) {
+    Serial.println("Failed to load settings file: " + filehndl);
+    return false;  // failed to open or parse
+  }
+
+  // Assign only if keys exist
+  if (doc.containsKey("adminName")) {
+    settings.adminName = doc["adminName"].as<String>();
+  }
+  if (doc.containsKey("adminPassword")) {
+    settings.adminPassword = doc["adminPassword"].as<String>();
+  }
+
+  // Debug output
+  Serial.println("Settings loaded:");
+  Serial.println("   adminName: " + settings.adminName);
+  Serial.println("   adminPassword: " + settings.adminPassword);
+
+  return true; // success
+}
+
+
 // helper: read JSON file into DynamicJsonDocument
 bool loadJsonData(String &filehndl, DynamicJsonDocument &doc) {
   File file = MEMC.open(filehndl, FILE_READ);
@@ -283,6 +332,10 @@ void setup() {
 
   createBlogJsonFile(entriesFile);
   createBlogJsonFile(messagesFile);
+  if(!createSettings(configFile)){
+    Serial.println("reading config file");
+    readSettings(configFile);
+  }
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
@@ -300,10 +353,13 @@ void setup() {
     updatePageServed();
     request->send(MEMC, "/aboutus.html", "text/html");
   });
+ server.on("/aboutus.png", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(MEMC, "/aboutus.png", "image/png");
+  });
 
   // serve admin dashboard
   server.on("/admin", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!request->authenticate(ADMIN_USERNAME, ADMIN_PASSWORD)) {
+    if (!request->authenticate(settings.adminName.c_str(), settings.adminPassword.c_str())) {
       return request->requestAuthentication();
     }
    if (!MEMC.exists("/admin.html")) {
@@ -313,6 +369,9 @@ void setup() {
   });
 
   server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->authenticate(settings.adminName.c_str(), settings.adminPassword.c_str())) {
+      return request->requestAuthentication();
+    }
     request->send(200, "text/plain", "Server has been shut down");
     RGB_SetMode(0);
     Serial.println("Entering Deep Sleep");
@@ -447,11 +506,36 @@ void setup() {
         }
         saveJsonData(entriesFile,doc);
         request->send(200, "text/plain", "Entry updated");
+      
+    } else if (action == "changeAdmin") {
+      if (request->hasParam("adminName", true) && request->hasParam("adminPassword", true)) {
+        String newName = request->getParam("adminName", true)->value();
+         String newPassword = request->getParam("adminPassword", true)->value();
+
+       // Update global settings
+      settings.adminName = newName;
+      settings.adminPassword = newPassword;
+
+    // Store into JSON doc
+       doc["adminName"] = settings.adminName;
+       doc["adminPassword"] = settings.adminPassword;
+
+    // Save to config file
+      if (saveJsonData(configFile, doc)) {
+          request->send(200, "text/plain", "Admin credentials updated");
+      } else {
+         request->send(500, "text/plain", "Failed to save credentials");
       }
-    } else {
+
+    Serial.println("Admin credentials updated:");
+    Serial.println("   adminName: " + settings.adminName);
+    Serial.println("   adminPassword: " + settings.adminPassword);
+    } 
+   } else {
       request->send(400, "text/plain", "Missing action");
     }
-  });
+  }
+});
 
   // API to fetch entries
 
@@ -532,10 +616,10 @@ server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("preview image enabled");
     server.serveStatic("/preview.png", MEMC, "/preview.png");
   }
-  if (MEMC.exists("/aboutus.png")) {
-    Serial.println("about us image enabled");
-    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
-  }
+ // if (MEMC.exists("/aboutus.png")) {
+ //   Serial.println("about us image enabled");
+//    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
+//  }
 
   updateDomain();
   server.begin();
@@ -552,8 +636,12 @@ void loop() {
       RGB_SetColor(255, 0, 0);
     } else if (currentTempC > 59.0) {
       RGB_SetColor(255, 128, 0);
+      //     digitalWrite(2,LOW);
+      //       Serial.println("fan on");
     } else if (currentTempC > 54.0) {
       RGB_SetColor(255, 255, 0);
+      //      digitalWrite(2,HIGH);
+
     } else {
       RGB_SetColor(0, 255, 0);
     }

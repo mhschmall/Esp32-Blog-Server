@@ -22,27 +22,27 @@
 
 
 // uncomment if you want to use duckdns.org
-#define USEDUCK 
+#define USEDUCK
 //your duckdns.org domain
-#define DOMAIN "your domain" //just the bit in front of .duckdns.org
+#define DOMAIN "Your domain" //yourdomain.duckdns.org
 //your duckdns.org token
-#define DDNSTOKEN "your ddns token"
+#define DDNSTOKEN "your token"
 //uncomment if you want to use a sd card
 #define USESD
 
 #ifdef USESD
-  #define MEMC SD_MMC
+#define MEMC SD_MMC
 #else
-  #define MEMC FFat
+#define MEMC FFat
 #endif
 
-//change these here or via the admin page
+//change these
 struct AdminSettings {
   String adminName = "blogonesp32";
   String adminPassword = "changemenow";
 };
 
-AdminSettings settings; 
+AdminSettings settings;
 int ENTRIES_PER_PAGE = 5;
 
 const char *ssid = "your ssid";
@@ -87,13 +87,13 @@ bool createSettings(String &jsonfile) {
   if (!MEMC.exists(jsonfile)) {
     Serial.println(String(jsonfile) + " file not found. Generating default.");
     DynamicJsonDocument doc(512);
-     doc["adminName"] = settings.adminName;
-     doc["adminPassword"] = settings.adminPassword;
+    doc["adminName"] = settings.adminName;
+    doc["adminPassword"] = settings.adminPassword;
     success = saveJsonData(jsonfile, doc);
   } else {
-     Serial.println(String(jsonfile) + " file exists, skipping creation.");
-     success = false;
-     }
+    Serial.println(String(jsonfile) + " file exists, skipping creation.");
+    success = false;
+  }
   return success;
 }
 
@@ -125,9 +125,9 @@ String cleanInput(String input) {
 
 void updateDomain() {
 #ifdef USEDUCK
- // Specify the URL
+  // Specify the URL
   String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNSTOKEN);
-  http.begin(url); 
+  http.begin(url);
   char httpResponseCode = http.GET();
 
   if (httpResponseCode > 0) {
@@ -172,8 +172,8 @@ unsigned int returnPageServed() {
 
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
                   uint8_t *data, size_t len, bool final) {
-  static File uploadFile;   // must be static to persist across chunks
-  static String targetPath; // store the actual file path being written
+  static File uploadFile;    // must be static to persist across chunks
+  static String targetPath;  // store the actual file path being written
 
   // Stage 1: The start of the upload (index == 0)
   if (!index) {
@@ -212,26 +212,28 @@ void createBlogJsonFile(String &jsonfile) {
   File filehndl;
   String jsondb;
   if (!MEMC.exists(jsonfile)) {
-    Serial.println(String(jsonfile) + " file not found. Generating default.");    
+    Serial.println(String(jsonfile) + " file not found. Generating default.");
     filehndl = MEMC.open(jsonfile, FILE_WRITE);
   }
 
   if (!filehndl) {
-      Serial.print(jsonfile);
-      Serial.println(" file exists, skipping creation");
-    } else {
-      
-      if (jsonfile == "/entries.json"){
-        jsondb = "entries";
-      } else { jsondb = "messages";}
+    Serial.print(jsonfile);
+    Serial.println(" file exists, skipping creation");
+  } else {
 
-      filehndl.println("{");
-      filehndl.println("\"" + String(jsondb) + "\":[]");
-      filehndl.println("}");
-      filehndl.close();
-      Serial.print(jsonfile);
-      Serial.println(" file created.");
+    if (jsonfile == "/entries.json") {
+      jsondb = "entries";
+    } else {
+      jsondb = "messages";
     }
+
+    filehndl.println("{");
+    filehndl.println("\"" + String(jsondb) + "\":[]");
+    filehndl.println("}");
+    filehndl.close();
+    Serial.print(jsonfile);
+    Serial.println(" file created.");
+  }
 }
 
 bool readSettings(String &filehndl) {
@@ -256,7 +258,7 @@ bool readSettings(String &filehndl) {
   Serial.println("   adminName: " + settings.adminName);
   Serial.println("   adminPassword: " + settings.adminPassword);
 
-  return true; // success
+  return true;  // success
 }
 
 
@@ -295,32 +297,32 @@ void setup() {
 
   // Initialize SD card
 #ifdef USESD
-   if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
+  if (!SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN, SD_D1_PIN, SD_D2_PIN, SD_D3_PIN)) {
     Serial.println("ERROR: SDMMC Pin configuration failed!");
     return;
-   }
-   if (!SD_MMC.begin("/sdcard", true)) {
-        Serial.println("SD Card Mount Failed");
-        return;
-    }
-    Serial.println("SD Card mounted");
+  }
+  if (!SD_MMC.begin("/sdcard", true)) {
+    Serial.println("SD Card Mount Failed");
+    return;
+  }
+  Serial.println("SD Card mounted");
 #else
-    if (!FFat.begin(true)) {
-        Serial.println("Failed to mount internal FAT filesystem, formatting");
-        while (1) delay(1000);
-    }
-    //You want to keep an eye on space. If your internal file system fills up, time to switch to SD
-    Serial.println("Internal FAT filesystem mounted");
-    totalBytes = FFat.totalBytes();
-    usedBytes = FFat.usedBytes();
-    totalMB = (float)totalBytes / (1024.0 * 1024.0);
-    Serial.print("File system size: ");
-    Serial.print(totalMB, 2); // Print with 2 decimal places
-    Serial.println(" MB");
-    totalMB = ((float)totalBytes - (float)usedBytes) / (1024 * 1024);
-    Serial.print("File system free: ");
-    Serial.print(totalMB, 2); // Print with 2 decimal places
-    Serial.println(" MB");
+  if (!FFat.begin(true)) {
+    Serial.println("Failed to mount internal FAT filesystem, formatting");
+    while (1) delay(1000);
+  }
+  //You want to keep an eye on space. If your internal file system fills up, time to switch to SD
+  Serial.println("Internal FAT filesystem mounted");
+  totalBytes = FFat.totalBytes();
+  usedBytes = FFat.usedBytes();
+  totalMB = (float)totalBytes / (1024.0 * 1024.0);
+  Serial.print("File system size: ");
+  Serial.print(totalMB, 2);  // Print with 2 decimal places
+  Serial.println(" MB");
+  totalMB = ((float)totalBytes - (float)usedBytes) / (1024 * 1024);
+  Serial.print("File system free: ");
+  Serial.print(totalMB, 2);  // Print with 2 decimal places
+  Serial.println(" MB");
 #endif
 
   WiFi.begin(ssid, password);
@@ -332,7 +334,7 @@ void setup() {
 
   createBlogJsonFile(entriesFile);
   createBlogJsonFile(messagesFile);
-  if(!createSettings(configFile)){
+  if (!createSettings(configFile)) {
     Serial.println("reading config file");
     readSettings(configFile);
   }
@@ -342,18 +344,18 @@ void setup() {
     request->send(MEMC, "/index.html", "text/html");
   });
 
-//serve contact us page
- server.on("/contact", HTTP_GET, [](AsyncWebServerRequest *request) {
+  //serve contact us page
+  server.on("/contact", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
     request->send(MEMC, "/contactus.html", "text/html");
   });
 
-//serve about us page
- server.on("/aboutus", HTTP_GET, [](AsyncWebServerRequest *request) {
+  //serve about us page
+  server.on("/aboutus", HTTP_GET, [](AsyncWebServerRequest *request) {
     updatePageServed();
     request->send(MEMC, "/aboutus.html", "text/html");
   });
- server.on("/aboutus.png", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/aboutus.png", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(MEMC, "/aboutus.png", "image/png");
   });
 
@@ -362,10 +364,9 @@ void setup() {
     if (!request->authenticate(settings.adminName.c_str(), settings.adminPassword.c_str())) {
       return request->requestAuthentication();
     }
-   if (!MEMC.exists("/admin.html")) {
-    request->send(200,"text/html","<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
-   } else request->send(MEMC, "/admin.html", "text/html");
-
+    if (!MEMC.exists("/admin.html")) {
+      request->send(200, "text/html", "<!DOCTYPE html><html lang=en><head><title>File Upload</title></head><body><h1>Upload File</h1><form enctype=multipart/form-data method=POST action=/import><input type=file name=file required><br><br><input type=text name=filename placeholder=Target_filename  value=Target_filename required><br><br><button type=submit>Upload</button></form></body></html>");
+    } else request->send(MEMC, "/admin.html", "text/html");
   });
 
   server.on("/shutdown", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -386,9 +387,25 @@ void setup() {
     DynamicJsonDocument doc(8192);
     int total = 0;
 
-    if (loadJsonData(entriesFile,doc)) {
+    if (loadJsonData(entriesFile, doc)) {
       JsonArray entries = doc["entries"].as<JsonArray>();
-      total = entries.size();
+
+      bool filterArchived = request->hasParam("archived");
+      bool wantArchived = false;
+      if (filterArchived) {
+        wantArchived = request->getParam("archived")->value() == "true";
+      }
+
+      for (JsonObject entry : entries) {
+        if (filterArchived) {
+          bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
+          if (isArchived == wantArchived) {
+            total++;
+          }
+        } else {
+          total++;
+        }
+      }
     }
 
     DynamicJsonDocument out(256);
@@ -398,6 +415,7 @@ void setup() {
     serializeJson(out, response);
     request->send(200, "application/json", response);
   });
+
 
   server.on("/pagecount", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument out(56);
@@ -422,9 +440,9 @@ void setup() {
       DynamicJsonDocument doc(8192);
 
       if (action == "upload") {
-       if (!loadJsonData(entriesFile,doc)) {
-        doc["entries"] = JsonArray();
-       }
+        if (!loadJsonData(entriesFile, doc)) {
+          doc["entries"] = JsonArray();
+        }
         String title = request->getParam("title", true)->value();
         String content = request->getParam("content", true)->value();
 
@@ -433,14 +451,15 @@ void setup() {
 
         newEntry["title"] = title;
         newEntry["content"] = content;
+        newEntry["archived"] = "false";
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveJsonData(entriesFile,doc);
+        saveJsonData(entriesFile, doc);
         request->send(200, "text/plain", "Entry uploaded");
 
-      } else if (action == "uploadmessage"){
+      } else if (action == "uploadmessage") {
         if (!loadJsonData(messagesFile, doc)) {
-        doc["messages"] = JsonArray();
-        } 
+          doc["messages"] = JsonArray();
+        }
         String name = request->getParam("name", true)->value();
         String email = request->getParam("email", true)->value();
         String subject = request->getParam("subject", true)->value();
@@ -453,13 +472,13 @@ void setup() {
         newEntry["subject"] = cleanInput(subject);
         newEntry["content"] = cleanInput(content);
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveJsonData(messagesFile,doc);
-       request->send(200);
-       
-      }else if (action == "deletemessage") {
-        if (!loadJsonData(messagesFile,doc)) {
-        doc["messages"] = JsonArray();
-        } 
+        saveJsonData(messagesFile, doc);
+        request->send(200);
+
+      } else if (action == "deletemessage") {
+        if (!loadJsonData(messagesFile, doc)) {
+          doc["messages"] = JsonArray();
+        }
         String id = request->getParam("id", true)->value();
         JsonArray messages = doc["messages"].as<JsonArray>();
         for (int i = 0; i < messages.size(); i++) {
@@ -468,11 +487,11 @@ void setup() {
             break;
           }
         }
-        saveJsonData(messagesFile,doc);
+        saveJsonData(messagesFile, doc);
         request->send(200, "text/plain", "Message deleted");
-      }else if (action == "delete") {
-        if (!loadJsonData(entriesFile,doc)) {
-        doc["entries"] = JsonArray();
+      } else if (action == "delete") {
+        if (!loadJsonData(entriesFile, doc)) {
+          doc["entries"] = JsonArray();
         }
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
@@ -482,11 +501,29 @@ void setup() {
             break;
           }
         }
-        saveJsonData(entriesFile,doc);
+        saveJsonData(entriesFile, doc);
         request->send(200, "text/plain", "Entry deleted");
+      } else if (action == "archive") {
+        if (!loadJsonData(entriesFile, doc)) {
+          doc["entries"] = JsonArray();
+        }
+        String id = request->getParam("id", true)->value();
+        JsonArray entries = doc["entries"].as<JsonArray>();
+        for (int i = 0; i < entries.size(); i++) {
+          if (entries[i]["timestamp"] == id) {
+            if (entries[i]["archived"] == "false") {
+              entries[i]["archived"] = "true";
+            } else {
+              entries[i]["archived"] = "false";
+            }
+            break;
+          }
+        }
+        saveJsonData(entriesFile, doc);
+        request->send(200, "text/plain", "Archive Toggled");
       } else if (action == "edit") {
-        if (!loadJsonData(entriesFile,doc)) {
-        doc["entries"] = JsonArray();
+        if (!loadJsonData(entriesFile, doc)) {
+          doc["entries"] = JsonArray();
         }
         String id = request->getParam("id", true)->value();
         String newContent = request->hasParam("content", true)
@@ -504,49 +541,49 @@ void setup() {
             break;
           }
         }
-        saveJsonData(entriesFile,doc);
+        saveJsonData(entriesFile, doc);
         request->send(200, "text/plain", "Entry updated");
-      
-    } else if (action == "changeAdmin") {
-      if (request->hasParam("adminName", true) && request->hasParam("adminPassword", true)) {
-        String newName = request->getParam("adminName", true)->value();
-         String newPassword = request->getParam("adminPassword", true)->value();
 
-       // Update global settings
-      settings.adminName = newName;
-      settings.adminPassword = newPassword;
+      } else if (action == "changeAdmin") {
+        if (request->hasParam("adminName", true) && request->hasParam("adminPassword", true)) {
+          String newName = request->getParam("adminName", true)->value();
+          String newPassword = request->getParam("adminPassword", true)->value();
 
-    // Store into JSON doc
-       doc["adminName"] = settings.adminName;
-       doc["adminPassword"] = settings.adminPassword;
+          // Update global settings
+          settings.adminName = newName;
+          settings.adminPassword = newPassword;
 
-    // Save to config file
-      if (saveJsonData(configFile, doc)) {
-          request->send(200, "text/plain", "Admin credentials updated");
+          // Store into JSON doc
+          doc["adminName"] = settings.adminName;
+          doc["adminPassword"] = settings.adminPassword;
+
+          // Save to config file
+          if (saveJsonData(configFile, doc)) {
+            request->send(200, "text/plain", "Admin credentials updated");
+          } else {
+            request->send(500, "text/plain", "Failed to save credentials");
+          }
+
+          Serial.println("Admin credentials updated:");
+          Serial.println("   adminName: " + settings.adminName);
+          Serial.println("   adminPassword: " + settings.adminPassword);
+        }
       } else {
-         request->send(500, "text/plain", "Failed to save credentials");
+        request->send(400, "text/plain", "Missing action");
       }
-
-    Serial.println("Admin credentials updated:");
-    Serial.println("   adminName: " + settings.adminName);
-    Serial.println("   adminPassword: " + settings.adminPassword);
-    } 
-   } else {
-      request->send(400, "text/plain", "Missing action");
     }
-  }
-});
+  });
 
   // API to fetch entries
 
   server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(8192);
-    if (!loadJsonData(entriesFile,doc)) {
+    if (!loadJsonData(entriesFile, doc)) {
       request->send(200, "application/json", "{\"entries\":[]}");
       return;
     }
 
-    JsonArray entries = doc["entries"].as<JsonArray>();
+    JsonArray allEntries = doc["entries"].as<JsonArray>();
 
     // Check if "all" parameter is present
     if (request->hasParam("all")) {
@@ -556,7 +593,24 @@ void setup() {
       return;
     }
 
-    // Default: paginated view
+    // Determine whether to show archived or non-archived
+    bool showArchived = false;
+    if (request->hasParam("archived")) {
+      showArchived = request->getParam("archived")->value() == "true";
+    }
+
+    // Filtered list
+    DynamicJsonDocument filtered(8192);
+    JsonArray filteredEntries = filtered.createNestedArray("entries");
+
+    for (JsonObject entry : allEntries) {
+      bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
+      if (isArchived == showArchived) {
+        filteredEntries.add(entry);
+      }
+    }
+
+    // Handle pagination
     int start = 0;
     if (request->hasParam("start")) {
       start = request->getParam("start")->value().toInt();
@@ -565,8 +619,8 @@ void setup() {
     DynamicJsonDocument out(8192);
     JsonArray slice = out.createNestedArray("entries");
 
-    for (int i = start; i < start + ENTRIES_PER_PAGE && i < entries.size(); i++) {
-      slice.add(entries[i]);
+    for (int i = start; i < start + ENTRIES_PER_PAGE && i < filteredEntries.size(); i++) {
+      slice.add(filteredEntries[i]);
     }
 
     String response;
@@ -574,9 +628,9 @@ void setup() {
     request->send(200, "application/json", response);
   });
 
-server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
     DynamicJsonDocument doc(8192);
-    if (!loadJsonData(messagesFile,doc)) {
+    if (!loadJsonData(messagesFile, doc)) {
       request->send(200, "application/json", "{\"messages\":[]}");
       return;
     }
@@ -616,10 +670,10 @@ server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("preview image enabled");
     server.serveStatic("/preview.png", MEMC, "/preview.png");
   }
- // if (MEMC.exists("/aboutus.png")) {
- //   Serial.println("about us image enabled");
-//    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
-//  }
+  // if (MEMC.exists("/aboutus.png")) {
+  //   Serial.println("about us image enabled");
+  //    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
+  //  }
 
   updateDomain();
   server.begin();
@@ -648,7 +702,7 @@ void loop() {
     lastTempReading = millis();
   }
 
-  if (millis() - lastDomainUpdate > 3,600,000,000 ) {
+  if (millis() - lastDomainUpdate > 3, 600, 000, 000) {
     //once an hour
     updateDomain();
   }

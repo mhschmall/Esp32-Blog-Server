@@ -29,9 +29,12 @@
 <body>
 
 <div class="topnav">
-  <a href="#">Worlds Smallest Blog Server - ESP32s3</a>
+  <a href="#" id="homeLink">Worlds Smallest Blog Server - ESP32s3</a>
+  <a href="/contact" style="float:right;">Contact Us</a>
+  <a href="/aboutus" style="float:right;">About Us</a>
+  <a href="#" id="archivedLink" style="float:right;">Archived</a>
 </div>
-
+ 
 <!-- Order toggle button -->
 <div style="text-align:left;">
   <button id="toggleOrderBtn">Order: Oldest → Newest</button>
@@ -58,6 +61,25 @@ let currentPage = 1;
 let totalPages = 1;
 let pageServed = 1;
 let orderAsc = true; // true = oldest→newest, false = newest→oldest
+let currentView = "entries"; // or "archived"
+
+document.getElementById("homeLink").addEventListener("click", async (e) => {
+  e.preventDefault();
+  currentView = "entries";
+  start = 0;
+  currentPage = 1;
+  await fetchTotalPages();
+  loadEntries();
+});
+
+document.getElementById("archivedLink").addEventListener("click", async (e) => {
+  e.preventDefault();
+  currentView = "archived";
+  start = 0;
+  currentPage = 1;
+  await fetchTotalPages();
+  loadEntries();
+});
 
 async function fetchPageSize() {
   const response = await fetch("/pagesize");
@@ -74,14 +96,14 @@ async function fetchPageServed() {
 }
 
 async function fetchTotalPages() {
-  const response = await fetch("/count");
+  const response = await fetch(`/count?archived=${currentView === "archived" ? "true" : "false"}`);
   const data = await response.json();
   const totalEntries = data.total || 0;
   totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
 }
 
 async function loadEntries() {
-  const response = await fetch(`/entries?start=${start}`);
+  const response = await fetch(`/entries?start=${start}&archived=${currentView === "archived" ? "true" : "false"}`);
   const data = await response.json();
 
   const container = document.getElementById("blog-container");

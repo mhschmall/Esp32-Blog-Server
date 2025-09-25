@@ -39,8 +39,11 @@ form input[type="text"], form textarea {
 }
 .delete-btn { background-color: #b33; color: white; }
 .edit-btn { background-color: #337ab7; color: white; }
+.archive-btn { background-color: #F4DC0B; color: white; }
 .delete-btn:hover { background-color: #d44; }
 .edit-btn:hover { background-color: #559ed6; }
+.archive-btn:hover { background-color: #FAEF8F; }
+
 
 /* Pagination */
 #pagination { text-align: center; margin-top: 20px; }
@@ -102,6 +105,7 @@ form input[type="text"], form textarea {
   <h2>Manage Content</h2>
   <div>
     <button id="manageEntriesBtn" class="btn-primary">Manage Entries</button>
+    <button id="manageArchivedBtn" class="btn-primary">Manage Archived</button>
     <button id="manageMessagesBtn" class="btn-primary">Manage Messages</button>
   </div><p>
   <div id="dataContainer"></div>
@@ -140,34 +144,34 @@ const pageSize = 5;
 let currentPage = 1;
 let totalPages = 1;
 let pageServed = 1;
-let currentView = "entries"; // "entries" or "messages"
+let currentView = "entries"; // "entries", "archived", or "messages"
 
 async function fetchPageServed() {
   const res = await fetch("/pagecount");
   const data = await res.json();
   pageServed = data.pagecount || 0;
   document.getElementById("footerText").textContent =
-    `${pageServed} pages served, Copyright 2025 @Spiffy Productions`;
+    `${pageServed} pages served, Copyright 2025@Spiffy Productions`;
 }
 
 // count for entries only
 async function fetchTotalPages() {
-  if (currentView === "entries") {
-    const res = await fetch("/count");
+  if (currentView === "entries" || currentView === "archived") {
+    const res = await fetch(`/count?archived=${currentView === "archived" ? "true" : "false"}`);
     const data = await res.json();
     const totalEntries = data.total || 0;
     totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
   } else {
+    // messages count
     const res = await fetch("/messages?all=true");
     const data = await res.json();
-    const list = data.messages || [];
-    const total = list.length;
+    const total = (data.messages || []).length;
     totalPages = Math.max(1, Math.ceil(total / pageSize));
   }
 }
 
 async function fetchEntries() {
-  const res = await fetch(`/entries?start=${start}`);
+  const res = await fetch(`/entries?start=${start}&archived=${currentView === "archived" ? "true" : "false"}`);
   const data = await res.json();
   const container = document.getElementById("dataContainer");
   container.innerHTML = "";
@@ -180,8 +184,10 @@ async function fetchEntries() {
         <h3>${entry.title}</h3>
         <p>${entry.content}</p>
         <small>ID: ${entry.timestamp}</small><br>
-        <button class="delete-btn" onclick="deleteEntry('${entry.timestamp}')">Delete</button>
+        ${currentView === "archived" ? "" : `<button class="archive-btn" onclick="archiveEntry('${entry.timestamp}', this)">Archive</button>
+`}
         <button class="edit-btn" onclick="editEntry('${entry.timestamp}', \`${entry.title}\`, \`${entry.content}\`)">Edit</button>
+        <button class="delete-btn" onclick="deleteEntry('${entry.timestamp}')">Delete</button>
       `;
       container.appendChild(div);
     });
@@ -231,6 +237,32 @@ async function deleteEntry(id) {
   await fetch("/forms", { method: "POST", body: fd });
   await fetchTotalPages();
   if (currentPage > totalPages) { currentPage = totalPages; start = (currentPage-1)*pageSize; }
+  fetchEntries();
+}
+
+async function archiveEntry(id, btn) {
+  // btn = the element that was clicked (pass `this` from onclick)
+  const fd = new FormData();
+  fd.append("action", "archive");
+  fd.append("id", id);
+
+  if (btn) { btn.disabled = true; btn.textContent = "Working..."; }
+
+  try {
+    const response = await fetch("/forms", { method: "POST", body: fd });
+    const text = await response.text();
+    alert(text);
+  } catch (err) {
+    alert("Network error: " + err);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Archive"; }
+  }
+
+  await fetchTotalPages();
+  if (currentPage > totalPages) {
+    currentPage = totalPages;
+    start = (currentPage - 1) * pageSize;
+  }
   fetchEntries();
 }
 
@@ -328,6 +360,10 @@ function loadCurrentView() {
 // Switch views
 document.getElementById("manageEntriesBtn").addEventListener("click", async () => {
   currentView = "entries"; start = 0; currentPage = 1;
+  await fetchTotalPages(); fetchEntries();
+});
+document.getElementById("manageArchivedBtn").addEventListener("click", async () => {
+  currentView = "archived"; start = 0; currentPage = 1;
   await fetchTotalPages(); fetchEntries();
 });
 document.getElementById("manageMessagesBtn").addEventListener("click", async () => {

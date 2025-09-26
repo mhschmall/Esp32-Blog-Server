@@ -353,8 +353,11 @@ document.getElementById("nextBtn").addEventListener("click", () => {
 });
 
 function loadCurrentView() {
-  if (currentView === "entries") { fetchEntries(); }
-  else { fetchMessages(); }
+  if (currentView === "entries" || currentView === "archived") {
+    fetchEntries();
+  } else if (currentView === "messages") {
+    fetchMessages();
+  }
 }
 
 // Switch views

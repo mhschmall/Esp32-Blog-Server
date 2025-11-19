@@ -283,7 +283,7 @@ bool saveJsonData(String &filehndl, DynamicJsonDocument &doc) {
 String WhatTimeIsIt() {
   struct tm timeinfo;
   getLocalTime(&timeinfo);
-  char timeStringBuff[32];
+  char timeStringBuff[40];
   strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
   return timeStringBuff;
 }
@@ -707,3 +707,4 @@ void loop() {
     updateDomain();
   }
 }
+

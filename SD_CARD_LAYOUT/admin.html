@@ -111,8 +111,10 @@ form input[type="text"], form textarea {
   <div id="dataContainer"></div>
 
   <div id="pagination">
+    <button id="firstBtn">First</button>
     <button id="prevBtn">Prev</button>
     <button id="nextBtn">Next</button>
+    <button id="lastBtn">Last</button>
     <span id="pageIndicator"></span>
   </div>
 </div>
@@ -223,8 +225,10 @@ async function fetchMessages() {
 }
 
 function updatePagination() {
+  document.getElementById("firstBtn").disabled = start === 0;
   document.getElementById("prevBtn").disabled = start === 0;
   document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+  document.getElementById("lastBtn").disabled = currentPage >= totalPages;
   document.getElementById("pageIndicator").textContent =
     `Page ${currentPage} of ${totalPages}`;
 }
@@ -350,6 +354,16 @@ document.getElementById("prevBtn").addEventListener("click", () => {
 });
 document.getElementById("nextBtn").addEventListener("click", () => {
   if (currentPage < totalPages) { start += pageSize; currentPage++; loadCurrentView(); }
+});
+document.getElementById("firstBtn").addEventListener("click", () => {
+  if (start !== 0) { start = 0; currentPage = 1; loadCurrentView(); }
+});
+document.getElementById("lastBtn").addEventListener("click", () => {
+  if (currentPage < totalPages) {
+    currentPage = totalPages;
+    start = (totalPages - 1) * pageSize;
+    loadCurrentView();
+  }
 });
 
 function loadCurrentView() {

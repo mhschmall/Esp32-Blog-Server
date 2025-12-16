@@ -19,16 +19,19 @@
 #define SD_D2_PIN 17
 #define SD_D3_PIN 21
 
-
-
 // uncomment if you want to use duckdns.org
 #define USEDUCK
 //your duckdns.org domain
-#define DOMAIN "Your domain" //yourdomain.duckdns.org
+#define DOMAIN "" //yourdomain.duckdns.org
 //your duckdns.org token
-#define DDNSTOKEN "your token"
+#define DDNSTOKEN ""
 //uncomment if you want to use a sd card
 #define USESD
+
+#ifdef USEDUCK
+ String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNSTOKEN);
+#endif
+
 
 #ifdef USESD
 #define MEMC SD_MMC
@@ -45,42 +48,38 @@ struct AdminSettings {
 AdminSettings settings;
 int ENTRIES_PER_PAGE = 5;
 
-const char *ssid = "your ssid";
-const char *password = "your ssid password";
+const char *ssid = "";
+const char *password = "";
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -25200;    // Example for PDT (GMT-7) in seconds
 const int daylightOffset_sec = 3600;  // Example for Daylight Saving Time
 
-unsigned long lastTempReading = 0;
-unsigned long lastDomainUpdate = 0;
-float currentTempC = 0.0;
-//pinMode(2, OUTPUT);  //active fan control if installed
-//digitalWrite(2,LOW); //off
+// WiFi connection timeout (in milliseconds)
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;  // 15 seconds
 
-uint32_t usedBytes;
-uint32_t totalBytes;
-float totalMB;
+unsigned long lastDomainUpdate = 0;
 
 String entriesFile = "/entries.json";
 String messagesFile = "/messages.json";
 String configFile = "/config.json";
 
-uint8_t currentLEDMode = 0;  // 0=off, 1=rainbow, 2=solid color
-uint8_t solidR = 0, solidG = 0, solidB = 0;
+// Tunable JSON capacities (shrink to reduce RAM; grow if deserialization fails)
+const size_t SETTINGS_JSON_CAP = 512;
+const size_t ENTRIES_JSON_CAP = 6144;   // entries payload cache
+const size_t MESSAGES_JSON_CAP = 6144;  // messages payload cache
+const size_t PAGE_JSON_BASE = 512;      // base for page slices
 
 Preferences eeprom;
 HTTPClient http;
 
 AsyncWebServer server(80);
 
-void RGB_SetColor(uint8_t r, uint8_t g, uint8_t b) {
-  solidR = r;
-  solidG = g;
-  solidB = b;
-  currentLEDMode = 2;
-  Set_Color(g, r, b);
-}
+// Cached JSON docs to avoid re-reading storage each request
+DynamicJsonDocument entriesCache(ENTRIES_JSON_CAP);
+DynamicJsonDocument messagesCache(MESSAGES_JSON_CAP);
+bool entriesCacheValid = false;
+bool messagesCacheValid = false;
 
 bool createSettings(String &jsonfile) {
   bool success;
@@ -125,10 +124,8 @@ String cleanInput(String input) {
 
 void updateDomain() {
 #ifdef USEDUCK
-  // Specify the URL
-  String url = "http://www.duckdns.org/update?domains=" + String(DOMAIN) + "&token=" + String(DDNSTOKEN);
   http.begin(url);
-  char httpResponseCode = http.GET();
+  int httpResponseCode = http.GET();
 
   if (httpResponseCode > 0) {
     String payload = http.getString();
@@ -141,17 +138,6 @@ void updateDomain() {
   http.end();
 #endif
   lastDomainUpdate = millis();
-}
-
-
-void RGB_SetMode(uint8_t mode) {
-  currentLEDMode = mode;
-  if (mode == 0) {
-    // Turn off LED immediately
-    Set_Color(0, 0, 0);
-  } else if (mode == 2) {
-    Set_Color(solidG, solidR, solidB);
-  }
 }
 
 void updatePageServed() {
@@ -203,6 +189,9 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
     uploadFile.close();
     Serial.printf("Upload finished: %s, size: %u\n", targetPath.c_str(), index + len);
 
+    if (targetPath == entriesFile) entriesCacheValid = false;
+    if (targetPath == messagesFile) messagesCacheValid = false;
+
     request->send(200, "text/plain", "File uploaded successfully!");
   }
 }
@@ -237,7 +226,7 @@ void createBlogJsonFile(String &jsonfile) {
 }
 
 bool readSettings(String &filehndl) {
-  DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(SETTINGS_JSON_CAP);
 
   // Try to load JSON from file
   if (!loadJsonData(filehndl, doc)) {
@@ -263,7 +252,7 @@ bool readSettings(String &filehndl) {
 
 
 // helper: read JSON file into DynamicJsonDocument
-bool loadJsonData(String &filehndl, DynamicJsonDocument &doc) {
+bool loadJsonData(const String &filehndl, DynamicJsonDocument &doc) {
   File file = MEMC.open(filehndl, FILE_READ);
   if (!file) return false;
   DeserializationError error = deserializeJson(doc, file);
@@ -272,12 +261,60 @@ bool loadJsonData(String &filehndl, DynamicJsonDocument &doc) {
 }
 
 // helper: save JSON doc back to file
-bool saveJsonData(String &filehndl, DynamicJsonDocument &doc) {
+bool saveJsonData(const String &filehndl, DynamicJsonDocument &doc) {
   File file = MEMC.open(filehndl, FILE_WRITE);
   if (!file) return false;
   serializeJson(doc, file);
   file.close();
   return true;
+}
+
+// Convenience wrappers that cache entries/messages between requests
+bool loadJsonDataIntoCache(const String &filehndl, DynamicJsonDocument &cacheDoc, bool &cacheValid) {
+  if (cacheValid) return true;
+  if (!loadJsonData(filehndl, cacheDoc)) {
+    return false;
+  }
+  cacheValid = true;
+  return true;
+}
+
+void ensureArray(DynamicJsonDocument &doc, const char *key) {
+  if (!doc.containsKey(key) || !doc[key].is<JsonArray>()) {
+    doc[key] = JsonArray();
+  }
+}
+
+DynamicJsonDocument &getEntriesDoc() {
+  if (!loadJsonDataIntoCache(entriesFile, entriesCache, entriesCacheValid)) {
+    entriesCache.clear();
+    entriesCache["entries"] = JsonArray();
+    entriesCacheValid = true;
+  }
+  ensureArray(entriesCache, "entries");
+  return entriesCache;
+}
+
+DynamicJsonDocument &getMessagesDoc() {
+  if (!loadJsonDataIntoCache(messagesFile, messagesCache, messagesCacheValid)) {
+    messagesCache.clear();
+    messagesCache["messages"] = JsonArray();
+    messagesCacheValid = true;
+  }
+  ensureArray(messagesCache, "messages");
+  return messagesCache;
+}
+
+bool persistEntries() {
+  bool ok = saveJsonData(entriesFile, entriesCache);
+  entriesCacheValid = ok;
+  return ok;
+}
+
+bool persistMessages() {
+  bool ok = saveJsonData(messagesFile, messagesCache);
+  messagesCacheValid = ok;
+  return ok;
 }
 
 String WhatTimeIsIt() {
@@ -303,6 +340,7 @@ void setup() {
   }
   if (!SD_MMC.begin("/sdcard", true)) {
     Serial.println("SD Card Mount Failed");
+    Set_Color(252,248,3); //yellow for mount fail
     return;
   }
   Serial.println("SD Card mounted");
@@ -313,9 +351,9 @@ void setup() {
   }
   //You want to keep an eye on space. If your internal file system fills up, time to switch to SD
   Serial.println("Internal FAT filesystem mounted");
-  totalBytes = FFat.totalBytes();
-  usedBytes = FFat.usedBytes();
-  totalMB = (float)totalBytes / (1024.0 * 1024.0);
+  uint32_t totalBytes = FFat.totalBytes();
+  uint32_t usedBytes = FFat.usedBytes();
+  float totalMB = (float)totalBytes / (1024.0 * 1024.0);
   Serial.print("File system size: ");
   Serial.print(totalMB, 2);  // Print with 2 decimal places
   Serial.println(" MB");
@@ -326,11 +364,23 @@ void setup() {
 #endif
 
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) delay(500);
+  unsigned long wifiStart = millis();
+  while (WiFi.status() != WL_CONNECTED &&
+         (millis() - wifiStart) < WIFI_CONNECT_TIMEOUT_MS) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
 
-  Serial.println("WiFi connected");
-  Serial.println(WiFi.localIP());
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi connected");
+    Serial.println(WiFi.localIP());
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  } else {
+    Serial.println("WiFi connection FAILED (timeout)");
+    Set_Color(7,252,3); //red for wifi failure
+    // Optional: add fallback behavior here (e.g., start AP mode or retry later)
+  }
 
   createBlogJsonFile(entriesFile);
   createBlogJsonFile(messagesFile);
@@ -374,7 +424,7 @@ void setup() {
       return request->requestAuthentication();
     }
     request->send(200, "text/plain", "Server has been shut down");
-    RGB_SetMode(0);
+    Set_Color(0, 0, 0);
     Serial.println("Entering Deep Sleep");
     esp_deep_sleep_start();
   });
@@ -384,27 +434,24 @@ void setup() {
   });
 
   server.on("/count", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(8192);
     int total = 0;
+    DynamicJsonDocument &doc = getEntriesDoc();
+    JsonArray entries = doc["entries"].as<JsonArray>();
 
-    if (loadJsonData(entriesFile, doc)) {
-      JsonArray entries = doc["entries"].as<JsonArray>();
+    bool filterArchived = request->hasParam("archived");
+    bool wantArchived = false;
+    if (filterArchived) {
+      wantArchived = request->getParam("archived")->value() == "true";
+    }
 
-      bool filterArchived = request->hasParam("archived");
-      bool wantArchived = false;
+    for (JsonObject entry : entries) {
       if (filterArchived) {
-        wantArchived = request->getParam("archived")->value() == "true";
-      }
-
-      for (JsonObject entry : entries) {
-        if (filterArchived) {
-          bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
-          if (isArchived == wantArchived) {
-            total++;
-          }
-        } else {
+        bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
+        if (isArchived == wantArchived) {
           total++;
         }
+      } else {
+        total++;
       }
     }
 
@@ -437,12 +484,9 @@ void setup() {
   server.on("/forms", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("action", true)) {
       String action = request->getParam("action", true)->value();
-      DynamicJsonDocument doc(8192);
 
       if (action == "upload") {
-        if (!loadJsonData(entriesFile, doc)) {
-          doc["entries"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getEntriesDoc();
         String title = request->getParam("title", true)->value();
         String content = request->getParam("content", true)->value();
 
@@ -453,13 +497,11 @@ void setup() {
         newEntry["content"] = content;
         newEntry["archived"] = "false";
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveJsonData(entriesFile, doc);
+        persistEntries();
         request->send(200, "text/plain", "Entry uploaded");
 
       } else if (action == "uploadmessage") {
-        if (!loadJsonData(messagesFile, doc)) {
-          doc["messages"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getMessagesDoc();
         String name = request->getParam("name", true)->value();
         String email = request->getParam("email", true)->value();
         String subject = request->getParam("subject", true)->value();
@@ -472,13 +514,11 @@ void setup() {
         newEntry["subject"] = cleanInput(subject);
         newEntry["content"] = cleanInput(content);
         newEntry["timestamp"] = WhatTimeIsIt();  // assumes you have a timestamp function
-        saveJsonData(messagesFile, doc);
+        persistMessages();
         request->send(200);
 
       } else if (action == "deletemessage") {
-        if (!loadJsonData(messagesFile, doc)) {
-          doc["messages"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getMessagesDoc();
         String id = request->getParam("id", true)->value();
         JsonArray messages = doc["messages"].as<JsonArray>();
         for (int i = 0; i < messages.size(); i++) {
@@ -487,12 +527,10 @@ void setup() {
             break;
           }
         }
-        saveJsonData(messagesFile, doc);
+        persistMessages();
         request->send(200, "text/plain", "Message deleted");
       } else if (action == "delete") {
-        if (!loadJsonData(entriesFile, doc)) {
-          doc["entries"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getEntriesDoc();
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (int i = 0; i < entries.size(); i++) {
@@ -501,12 +539,10 @@ void setup() {
             break;
           }
         }
-        saveJsonData(entriesFile, doc);
+        persistEntries();
         request->send(200, "text/plain", "Entry deleted");
       } else if (action == "archive") {
-        if (!loadJsonData(entriesFile, doc)) {
-          doc["entries"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getEntriesDoc();
         String id = request->getParam("id", true)->value();
         JsonArray entries = doc["entries"].as<JsonArray>();
         for (int i = 0; i < entries.size(); i++) {
@@ -519,12 +555,10 @@ void setup() {
             break;
           }
         }
-        saveJsonData(entriesFile, doc);
+        persistEntries();
         request->send(200, "text/plain", "Archive Toggled");
       } else if (action == "edit") {
-        if (!loadJsonData(entriesFile, doc)) {
-          doc["entries"] = JsonArray();
-        }
+        DynamicJsonDocument &doc = getEntriesDoc();
         String id = request->getParam("id", true)->value();
         String newContent = request->hasParam("content", true)
                               ? request->getParam("content", true)->value()
@@ -541,7 +575,7 @@ void setup() {
             break;
           }
         }
-        saveJsonData(entriesFile, doc);
+        persistEntries();
         request->send(200, "text/plain", "Entry updated");
 
       } else if (action == "changeAdmin") {
@@ -554,6 +588,7 @@ void setup() {
           settings.adminPassword = newPassword;
 
           // Store into JSON doc
+          DynamicJsonDocument doc(SETTINGS_JSON_CAP);
           doc["adminName"] = settings.adminName;
           doc["adminPassword"] = settings.adminPassword;
 
@@ -577,12 +612,7 @@ void setup() {
   // API to fetch entries
 
   server.on("/entries", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(8192);
-    if (!loadJsonData(entriesFile, doc)) {
-      request->send(200, "application/json", "{\"entries\":[]}");
-      return;
-    }
-
+    DynamicJsonDocument &doc = getEntriesDoc();
     JsonArray allEntries = doc["entries"].as<JsonArray>();
 
     // Check if "all" parameter is present
@@ -599,28 +629,25 @@ void setup() {
       showArchived = request->getParam("archived")->value() == "true";
     }
 
-    // Filtered list
-    DynamicJsonDocument filtered(8192);
-    JsonArray filteredEntries = filtered.createNestedArray("entries");
-
-    for (JsonObject entry : allEntries) {
-      bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
-      if (isArchived == showArchived) {
-        filteredEntries.add(entry);
-      }
-    }
-
     // Handle pagination
     int start = 0;
     if (request->hasParam("start")) {
       start = request->getParam("start")->value().toInt();
     }
 
-    DynamicJsonDocument out(8192);
+    const size_t pageCap = PAGE_JSON_BASE + (ENTRIES_PER_PAGE * 512);
+    DynamicJsonDocument out(pageCap);
     JsonArray slice = out.createNestedArray("entries");
 
-    for (int i = start; i < start + ENTRIES_PER_PAGE && i < filteredEntries.size(); i++) {
-      slice.add(filteredEntries[i]);
+    int added = 0;
+    for (int i = 0; i < allEntries.size(); i++) {
+      JsonObject entry = allEntries[i];
+      bool isArchived = entry.containsKey("archived") && entry["archived"] == "true";
+      if (isArchived != showArchived) continue;
+      if (i < start) continue;
+      slice.add(entry);
+      added++;
+      if (added >= ENTRIES_PER_PAGE) break;
     }
 
     String response;
@@ -629,12 +656,7 @@ void setup() {
   });
 
   server.on("/messages", HTTP_GET, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(8192);
-    if (!loadJsonData(messagesFile, doc)) {
-      request->send(200, "application/json", "{\"messages\":[]}");
-      return;
-    }
-
+    DynamicJsonDocument &doc = getMessagesDoc();
     JsonArray messages = doc["messages"].as<JsonArray>();
 
     // Default: paginated view
@@ -643,7 +665,8 @@ void setup() {
       start = request->getParam("start")->value().toInt();
     }
 
-    DynamicJsonDocument out(8192);
+    const size_t pageCap = PAGE_JSON_BASE + (ENTRIES_PER_PAGE * 256);
+    DynamicJsonDocument out(pageCap);
     JsonArray slice = out.createNestedArray("messages");
 
     for (int i = start; i < start + ENTRIES_PER_PAGE && i < messages.size(); i++) {
@@ -675,36 +698,20 @@ void setup() {
   //    server.serveStatic("/aboutus.png", MEMC, "/aboutus.png");
   //  }
 
-  updateDomain();
+  // Only try to update the public domain if we are connected to WiFi
+  if (WiFi.status() == WL_CONNECTED) {
+    updateDomain();
+  }
   server.begin();
+  
+  Set_Color(255,0,0); //g,r,b
   Serial.println("Esp32 blog server up");
 }
 
 
 void loop() {
-
-  if (millis() - lastTempReading > 6000) {
-    currentTempC = temperatureRead();
-    RGB_SetMode(2);
-    if (currentTempC > 62.0) {
-      RGB_SetColor(255, 0, 0);
-    } else if (currentTempC > 59.0) {
-      RGB_SetColor(255, 128, 0);
-      //     digitalWrite(2,LOW);
-      //       Serial.println("fan on");
-    } else if (currentTempC > 54.0) {
-      RGB_SetColor(255, 255, 0);
-      //      digitalWrite(2,HIGH);
-
-    } else {
-      RGB_SetColor(0, 255, 0);
-    }
-    lastTempReading = millis();
-  }
-
-  if (millis() - lastDomainUpdate > 3, 600, 000, 000) {
-    //once an hour
+  // once an hour; keep interval below millis() wrap window
+  if (millis() - lastDomainUpdate > 3600000UL) {
     updateDomain();
   }
 }
-

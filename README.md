@@ -65,6 +65,9 @@ The software now supports updating a domain with duckdns.org.  Visit duckdns.org
 
 ----------
 
+I put the color led's to use: Green, we're up and running. Red, wifi failure. Yellow, SD card mount failure. 
+
+-----------
 About us
 
 This is a static html page that you will need to edit your own info into. No editor? Throw it at an ai and have it make the changes for you. Find a nice pic and save it as aboutus.png or have the ai make you one while it edits your aboutus.html page.
